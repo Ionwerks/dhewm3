@@ -420,6 +420,13 @@ public:
 						// renderbump wrapped over them.
 	bool				UseUnsmoothedTangents( void ) const { return unsmoothedTangents; }
 
+	// RBMIKKT_TANGENT...
+	// characters and models that baked in Blender or Substance designer use the newer
+	// Mikkelsen tangent space standard.
+	// see: https://bgolus.medium.com/generating-perfect-normal-maps-for-unity-f929e673fc57
+	bool				UseMikkTSpace() const { return mikktspace; }
+	// ...RBMIKKT_TANGENT
+
 						// by default, monsters can have blood overlays placed on them, but this can
 						// be overrided on a per-material basis with the "noOverlays" material command.
 						// This will always return false for translucent surfaces
@@ -658,6 +665,7 @@ private:
 	bool				blendLight;
 	bool				ambientLight;
 	bool				unsmoothedTangents;
+	bool				mikktspace;			 // RBMIKKT_TANGENT use Mikkelsen tangent space standard for normal mapping
 	bool				hasSubview;			// mirror, remote render, etc
 	bool				allowOverlays;
 

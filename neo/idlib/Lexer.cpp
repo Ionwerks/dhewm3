@@ -1587,11 +1587,6 @@ int idLexer::NumLinesCrossed( void ) {
 	return idLexer::line - idLexer::lastline;
 }
 
-/*
-================
-idLexer::LoadFile
-================
-*/
 int idLexer::LoadFile( const char *filename, bool OSPath ) {
 	idFile *fp;
 	idStr pathname;
@@ -1613,7 +1608,7 @@ int idLexer::LoadFile( const char *filename, bool OSPath ) {
 	} else {
 		fp = idLib::fileSystem->OpenFileRead( pathname );
 	}
-	if ( !fp ) {
+	if (!fp) {
 		return false;
 	}
 	length = fp->Length();
@@ -1798,3 +1793,16 @@ idLexer::HadError
 bool idLexer::HadError( void ) const {
 	return hadError;
 }
+
+#if MD5_BINARY_ANIM > 0 || 1
+
+/*
+================
+idLexer::GetBaseFolder
+================
+*/
+const char* idLexer::GetBaseFolder(void) {
+	return baseFolder;
+}
+
+#endif

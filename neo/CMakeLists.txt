@@ -51,9 +51,9 @@ option(CORE			"Build the core" ON)
 option(BASE			"Build the base game code" ON)
 option(D3XP			"Build the d3xp game code" ON)
 if(MSVC)
-	option(TOOLS		"Build the tools game code (Visual Studio+SDL2 only)" OFF)
+	option(TOOLS		"Build the tools game code (Visual Studio+SDL2 only)" ON) # OFF
 endif()
-option(DEDICATED	"Build the dedicated server" OFF)
+option(DEDICATED	"Build the dedicated server" ON) # OFF
 option(ONATIVE		"Optimize for the host CPU" OFF)
 option(SDL2			"Use SDL2 instead of SDL1.2" ON)
 option(REPRODUCIBLE_BUILD "Replace __DATE__ and __TIME__ by hardcoded values for reproducible builds" OFF)
@@ -713,6 +713,16 @@ set(src_idlib
 
 add_globbed_headers(src_idlib "idlib")
 
+# RBMIKKT_TANGENT...
+
+set(src_mikktspace
+	libs/mikktspace/mikktspace.c
+)
+
+add_globbed_headers(src_mikktspace "mikktspace")
+
+# ...RBMIKKT_TANGENT
+
 set(src_game
 	game/AF.cpp
 	game/AFEntity.cpp
@@ -1103,6 +1113,14 @@ endif()
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} PREFIX neo FILES ${src_idlib})
 
+# RBMIKKT_TANGENT...
+
+add_library(mikktspace STATIC ${src_mikktspace})
+
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} PREFIX neo FILES ${src_mikktspace})
+
+# ...RBMIKKT_TANGENT
+
 if(HARDLINK_GAME)
 	if(BASE)
 		set(src_core ${src_core} ${src_game})
@@ -1143,6 +1161,7 @@ endif()
 
 	target_link_libraries(${DHEWM3BINARY}
 		idlib
+		mikktspace # RBMIKKT_TANGENT
 		${OPENAL_LIBRARY}
 		${CURL_LIBRARY}
 		${ZLIB_LIBRARY}
@@ -1179,6 +1198,7 @@ endif()
 	set_target_properties(${DHEWM3BINARY}ded PROPERTIES LINK_FLAGS "${ldflags}")
 	target_link_libraries(${DHEWM3BINARY}ded
 		idlib
+		mikktspace # RBMIKKT_TANGENT
 		${CURL_LIBRARY}
 		${ZLIB_LIBRARY}
 		${SDLx_LIBRARY}

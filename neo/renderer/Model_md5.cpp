@@ -63,6 +63,15 @@ idMD5Mesh::idMD5Mesh() {
 	numTris			= 0;
 	deformInfo		= NULL;
 	surfaceNum		= 0;
+	#if MD5_ENABLE_GIBS > 0
+	gibStart		= 0;
+	gibUntil		= 0;
+	gibSpurt		= 0;
+	#endif
+	#if MD5_ENABLE_LODS > 0
+	lodLower		= 0.00f;
+	lodUpper		= 0.00f;
+	#endif
 }
 
 /*
@@ -84,7 +93,16 @@ idMD5Mesh::~idMD5Mesh() {
 idMD5Mesh::ParseMesh
 ====================
 */
-void idMD5Mesh::ParseMesh( idLexer &parser, int numJoints, const idJointMat *joints ) {
+#if   MD5_BINARY_MESH > 2 // WRITE+
+bool idMD5Mesh::ParseMesh(idLexer &parser, int numJoints, const idJointMat* joints, idFile* data_fd, idFile* text_fd) {
+#elif MD5_BINARY_MESH > 1 // WRITE
+bool idMD5Mesh::ParseMesh(idLexer &parser, int numJoints, const idJointMat* joints, idFile* data_fd) {
+#elif MD5_BINARY_MESH > 0
+bool idMD5Mesh::ParseMesh(idLexer &parser, int numJoints, const idJointMat *joints) {
+#else
+void idMD5Mesh::ParseMesh(idLexer &parser, int numJoints, const idJointMat *joints) {
+#endif
+
 	idToken		token;
 	idToken		name;
 	int			num;
@@ -99,6 +117,10 @@ void idMD5Mesh::ParseMesh( idLexer &parser, int numJoints, const idJointMat *joi
 	idList<vertexWeight_t> tempWeights;
 
 	parser.ExpectTokenString( "{" );
+
+	#if MD5_BINARY_MESH > 1 // WRITE
+	idStr blockComment; parser.ReadRestOfLine(blockComment);
+	#endif
 
 	//
 	// parse name
@@ -115,6 +137,60 @@ void idMD5Mesh::ParseMesh( idLexer &parser, int numJoints, const idJointMat *joi
 	parser.ReadToken( &token );
 	shaderName = token;
 
+	#if MD5_ENABLE_GIBS > 0
+	idStr shaderComment;  parser.ReadRestOfLine(shaderComment);
+	int show = idStr::FindText(shaderComment.c_str(), "SHOW:");
+	if (show >= 0) {
+		const char* zone = &shaderComment.c_str()[show + 5];
+		if (zone && zone[0] >= '0' && zone[0] <= '9') {
+			if (zone[1] == '-' && zone[2] >= zone[0] && zone[2] <= '9') {
+				gibStart = +(zone[0] - 47); // Store 1-based index (so 0 is disabled), +ve for reveal.
+				gibUntil = +(zone[2] - 47);
+				gibSpurt =  (zone[3] == '#' ? 3 : zone[3] == '$' ? 2 : zone[3] == '%' ? 1 : 0);
+			}
+			else {
+				gibStart = +(zone[0] - 47); // Store 1-based index (so 0 is disabled), +ve for reveal.
+				gibUntil = +(zone[0] - 47);
+				gibSpurt =  (zone[1] == '#' ? 3 : zone[1] == '$' ? 2 : zone[1] == '%' ? 1 : 0);
+			}
+		}
+	}
+	int hide = idStr::FindText(shaderComment.c_str(), "HIDE:");
+	if (hide >= 0) {
+		const char* zone = &shaderComment.c_str()[hide + 5];
+		if (zone && zone[0] >= '0' && zone[0] <= '9') {
+			if (zone[1] == '-' && zone[2] >= zone[0] && zone[2] <= '9') {
+				gibStart = -(zone[0] - 47); // Store 1-based index (so 0 is disabled), -ve for conceal.
+				gibUntil = -(zone[2] - 47);
+				gibSpurt =  (zone[3] == '#' ? 3 : zone[3] == '$' ? 2 : zone[3] == '%' ? 1 : 0);
+			}
+			else {
+				gibStart = -(zone[0] - 47); // Store 1-based index (so 0 is disabled), -ve for conceal.
+				gibUntil = -(zone[0] - 47);
+				gibSpurt =  (zone[1] == '#' ? 3 : zone[1] == '$' ? 2 : zone[1] == '%' ? 1 : 0);
+			}
+		}
+	}
+	#endif
+
+	#if MD5_BINARY_MESH > 2 // WRITE+
+	if (text_fd) text_fd->Printf("mesh {\n\tshader \"%s\"\n", shaderName.c_str());
+	#endif
+
+	#if MD5_ENABLE_LODS > 0
+	if (shaderName.Right(8).Cmpn("/lod_", 5) == 0) { // Example; models/characters/player/body/lod_2_9
+		const char* range = &shaderName.c_str()[shaderName.Length() - 3];
+		if (range[0] >= '0' && range[0] <= 'Z' && range[1] == '_' && range[2] >= '0' && range[2] <= 'Z') {
+			float  steps = r_lodRangeIncrements.GetFloat();
+			int ndxLower = range[0] - (range[0] > 57 ? 55 : 48); // 0-9, A-Z => 0-35
+			int ndxUpper = range[2] - (range[2] > 57 ? 55 : 48); // 0-9, A-Z => 0-35
+			lodLower = ndxLower * steps; lodLower *= lodLower; // Stored (and compared) squared.
+			lodUpper = ndxUpper * steps; lodUpper *= lodUpper;
+			shaderName.CapLength(shaderName.Length() - 8);
+		}
+	}
+	#endif
+
 	shader = declManager->FindMaterial( shaderName );
 
 	//
@@ -122,6 +198,21 @@ void idMD5Mesh::ParseMesh( idLexer &parser, int numJoints, const idJointMat *joi
 	//
 	parser.ExpectTokenString( "numverts" );
 	count = parser.ParseInt();
+
+	#if MD5_BINARY_MESH > 0
+	bool load_data = false;
+	if (parser.PeekTokenString("numtris")) {
+		texCoords.SetNum(count);
+		parser.ExpectTokenString("numtris"); numTris = parser.ParseInt();
+		parser.ExpectTokenString("numweights"); numWeights = parser.ParseInt(); // NB: Not actually used.
+		parser.ExpectTokenString("}");
+		assert(deformInfo == NULL);
+		assert(scaledWeights == NULL);
+		assert(weightIndex == NULL);
+		load_data = true;
+	} else {
+	#endif
+
 	if ( count < 0 ) {
 		parser.Error( "Invalid size: %s", token.c_str() );
 	}
@@ -241,8 +332,90 @@ void idMD5Mesh::ParseMesh( idLexer &parser, int numJoints, const idJointMat *joi
 		verts[i].st = texCoords[i];
 	}
 	TransformVerts( verts, joints );
-	deformInfo = R_BuildDeformInfo( texCoords.Num(), verts, tris.Num(), tris.Ptr(), shader->UseUnsmoothedTangents() );
+
+	#if MD5_BINARY_MESH > 1 // WRITE
+	deformInfo = R_BuildDeformInfo(texCoords.Num(), verts, tris.Num(), tris.Ptr(), (data_fd == NULL && shader->UseUnsmoothedTangents()) || (data_fd != NULL && blockComment.Icmp("NoUnsmoothedTangents")));
+	#else
+	deformInfo = R_BuildDeformInfo(texCoords.Num(), verts, tris.Num(), tris.Ptr(), shader->UseUnsmoothedTangents());
+	#endif
+
+	#if MD5_BINARY_MESH > 2 // WRITE+
+	if (text_fd) text_fd->Printf("\tnumverts %d\n\tnumtris %d\n\tnumweights %d\n}\n\n", texCoords.Num(), tris.Num() / 3, numWeights); // NB: By here numWeights may be revised (but we don't use it).
+	#endif
+
+	#if MD5_BINARY_MESH > 1 // WRITE
+	if (data_fd) WriteData(data_fd);
+	#endif
+
+	#if MD5_BINARY_MESH > 0
+	}
+	return load_data;
+	#endif
+
 }
+
+#if MD5_BINARY_MESH > 1 // WRITE
+/* ====================
+idMD5Mesh::WriteData
+==================== */
+void idMD5Mesh::WriteData(idFile* data_fd) { // NB: Binarisation is not strictly portable; presumes int and float are each of 4-bytes (and big-endian).
+
+	deformInfo->numDominantTris = deformInfo->dominantTris ? deformInfo->numOutputVerts : 0;
+	deformInfo->numWeights      = numWeights; // NB: May be expanded by R_BuildDeformInfo.
+
+	data_fd->Write(deformInfo,      sizeof(int             ) * 8              );
+	data_fd->Write(texCoords.Ptr(), sizeof(texCoords[0]    ) * texCoords.Num());
+	data_fd->Write(scaledWeights,   sizeof(scaledWeights[0]) * numWeights     );
+	data_fd->Write(weightIndex,     sizeof(weightIndex[0]  ) * numWeights * 2 );
+
+	if (deformInfo->numIndexes         ) data_fd->Write(deformInfo->indexes,       sizeof(deformInfo->indexes[0]      ) * deformInfo->numIndexes      );
+	if (deformInfo->numIndexes         ) data_fd->Write(deformInfo->silIndexes,    sizeof(deformInfo->silIndexes[0]   ) * deformInfo->numIndexes      );
+	if (deformInfo->numSilEdges        ) data_fd->Write(deformInfo->silEdges,      sizeof(deformInfo->silEdges[0]     ) * deformInfo->numSilEdges     );
+	if (deformInfo->numDupVerts        ) data_fd->Write(deformInfo->dupVerts,      sizeof(deformInfo->dupVerts[0]     ) * deformInfo->numDupVerts * 2 );
+	if (deformInfo->numMirroredVerts   ) data_fd->Write(deformInfo->mirroredVerts, sizeof(deformInfo->mirroredVerts[0]) * deformInfo->numMirroredVerts);
+	if (deformInfo->numDominantTris > 0) data_fd->Write(deformInfo->dominantTris,  sizeof(deformInfo->dominantTris[0] ) * deformInfo->numDominantTris );
+
+	if (shader->UseUnsmoothedTangents() != true) R_FreeDeformInfoDominantTris(deformInfo);
+
+}
+#endif
+
+#if MD5_BINARY_MESH > 0
+/* ====================
+idMD5Mesh::FetchData
+==================== */
+void idMD5Mesh::FetchData(idFile* data_fd) { if (deformInfo) return; // NB: Some unbinarized meshes might be expected.
+
+	deformInfo = R_AllocDeformInfo();
+	
+	data_fd->Read(deformInfo,       sizeof(int             ) * 8              );
+	data_fd->Read(texCoords.Ptr(),  sizeof(texCoords[0]    ) * texCoords.Num());
+
+	#if MD5_ENABLE_LODS > 2 // DEBUG+
+	if (shader->UseUnsmoothedTangents() != true && r_testUnsmoothedTangents.GetInteger() != 2) deformInfo->numDominantTris = -deformInfo->numDominantTris;
+	#else
+	if (shader->UseUnsmoothedTangents() != true) deformInfo->numDominantTris = -deformInfo->numDominantTris;
+	#endif
+
+	numWeights    = deformInfo->numWeights; // NB: May be expanded by R_BuildDeformInfo.
+	scaledWeights = (idVec4*)Mem_Alloc16(sizeof(scaledWeights[0]) * numWeights);
+	weightIndex   = (int*)Mem_Alloc16(sizeof(weightIndex[0]) * numWeights * 2 );
+
+	data_fd->Read(scaledWeights,    sizeof(scaledWeights[0]) * numWeights     );
+	data_fd->Read(weightIndex,      sizeof(weightIndex[0]  ) * numWeights * 2 );
+
+	R_AllocDeformInfo(deformInfo);
+
+	if (deformInfo->numIndexes         ) data_fd->Read(deformInfo->indexes,       sizeof(deformInfo->indexes[0]      ) * deformInfo->numIndexes      );
+	if (deformInfo->numIndexes         ) data_fd->Read(deformInfo->silIndexes,    sizeof(deformInfo->silIndexes[0]   ) * deformInfo->numIndexes      );
+	if (deformInfo->numSilEdges        ) data_fd->Read(deformInfo->silEdges,      sizeof(deformInfo->silEdges[0]     ) * deformInfo->numSilEdges     );
+	if (deformInfo->numDupVerts        ) data_fd->Read(deformInfo->dupVerts,      sizeof(deformInfo->dupVerts[0]     ) * deformInfo->numDupVerts * 2 );
+	if (deformInfo->numMirroredVerts   ) data_fd->Read(deformInfo->mirroredVerts, sizeof(deformInfo->mirroredVerts[0]) * deformInfo->numMirroredVerts);
+	if (deformInfo->numDominantTris > 0) data_fd->Read(deformInfo->dominantTris,  sizeof(deformInfo->dominantTris[0] ) * deformInfo->numDominantTris ); else
+	if (deformInfo->numDominantTris < 0) data_fd->Seek(                          -sizeof(deformInfo->dominantTris[0] ) * deformInfo->numDominantTris, FS_SEEK_CUR);
+
+}
+#endif
 
 /*
 ====================
@@ -498,6 +671,23 @@ void idRenderModelMD5::LoadModel() {
 	idMD5Joint	*joint;
 	idJointMat *poseMat3;
 
+	#if MD5_ENABLE_GIBS > 0
+	gibZones = 0;
+	gibBleed = 0;
+	gibSmoke = 0;
+	gibSpark = 0;
+	#endif
+
+	#if MD5_ENABLE_LODS > 1 // DEBUG
+	lodFrame = 0;
+	lodIndex = 0;
+	lodCount = 0;
+	lodCalls = 0;
+	lodFaces = 0;
+	lodLevel = 0;
+	lodRange = 0.00f;
+	#endif
+
 	if ( !purged ) {
 		PurgeModel();
 	}
@@ -520,6 +710,27 @@ void idRenderModelMD5::LoadModel() {
 	//
 	parser.ExpectTokenString( "commandline" );
 	parser.ReadToken( &token );
+
+	#if MD5_BINARY_MESH > 1 // WRITE
+	idFile* data_fd = (token.Icmpn("binary-export ", 14) ? NULL : fileSystem->OpenExplicitFileWrite(token.Right(token.Length() - 14)));
+	#endif
+
+	#if MD5_BINARY_MESH > 2 // WRITE+
+	idFile* text_fd = NULL; const char* header = parser.GetPosition();
+	if (data_fd) {
+		#if MD5_BINARY_MESH > 3 // WRITE++
+		idFile* save_fd = NULL;
+		token.Replace(".md5data", ".md5save");
+		if (save_fd = fileSystem->OpenExplicitFileWrite(token.Right(token.Length() - 14))) {
+			save_fd->Write(parser.GetCommence(), parser.GetConclude() - parser.GetCommence()); fileSystem->CloseFile(save_fd); token.Replace(".md5save", ".md5data");
+		}
+		#endif
+		token.Replace(".md5data", ".md5mesh");
+		if (text_fd = fileSystem->OpenExplicitFileWrite(token.Right(token.Length() - 14))) {
+			text_fd->Printf("MD5Version 10\ncommandline \"\"");
+		}
+	}
+	#endif
 
 	// parse num joints
 	parser.ExpectTokenString( "numJoints" );
@@ -558,10 +769,81 @@ void idRenderModelMD5::LoadModel() {
 	}
 	parser.ExpectTokenString( "}" );
 
+	#if MD5_BINARY_MESH > 2 // WRITE+
+	if (text_fd) {text_fd->Write(header, parser.GetPosition() - header); text_fd->Printf("\n\n");}
+	#endif
+
+	#if MD5_ENABLE_LODS > 1 // DEBUG
+	lodCount = 0;
+	#endif
+
+	#if MD5_BINARY_MESH > 0
+	bool load_data = false;
+	#endif
+
 	for( i = 0; i < meshes.Num(); i++ ) {
 		parser.ExpectTokenString( "mesh" );
-		meshes[ i ].ParseMesh( parser, defaultPose.Num(), poseMat3 );
+		#if   MD5_BINARY_MESH > 2 // WRITE+
+		load_data |= meshes[i].ParseMesh(parser, defaultPose.Num(), poseMat3, data_fd, text_fd);
+		#elif MD5_BINARY_MESH > 1 // WRITE
+		load_data |= meshes[i].ParseMesh(parser, defaultPose.Num(), poseMat3, data_fd         );
+		#elif MD5_BINARY_MESH > 0
+		load_data |= meshes[i].ParseMesh(parser, defaultPose.Num(), poseMat3                  );
+		#else
+		             meshes[i].ParseMesh(parser, defaultPose.Num(), poseMat3                  );
+		#endif
+		#if MD5_ENABLE_GIBS > 0
+		if (meshes[i].gibStart != 0) {
+			#if MD5_ENABLE_GIBS > 1
+			int gibIndex = (meshes[i].gibStart < 0 ? -meshes[i].gibStart : +meshes[i].gibStart);
+			int gibUntil = (meshes[i].gibUntil < 0 ? -meshes[i].gibUntil : +meshes[i].gibUntil);
+			for (; gibIndex <= gibUntil; gibIndex++) {
+			#else
+			int gibIndex = (meshes[i].gibStart < 0 ? -meshes[i].gibStart : +meshes[i].gibStart) - 1;
+			int gibUntil = (meshes[i].gibUntil < 0 ? -meshes[i].gibUntil : +meshes[i].gibUntil);
+			for (; gibIndex < gibUntil; gibIndex++) {
+			#endif
+				gibZones |= (1 << gibIndex);
+				if (meshes[i].gibSpurt == 1) gibBleed |= (1 << gibIndex); else
+				if (meshes[i].gibSpurt == 2) gibSmoke |= (1 << gibIndex); else
+				if (meshes[i].gibSpurt == 3) gibSpark |= (1 << gibIndex);
+			}
+		}
+		#endif
+		#if MD5_ENABLE_LODS > 1 // DEBUG
+		if (meshes[i].lodLower == 0 && meshes[i].lodUpper != 0) lodCount++;
+		#endif
 	}
+
+	#if MD5_BINARY_MESH > 2 // WRITE+
+	if (text_fd) fileSystem->CloseFile(text_fd);
+	#endif
+
+	#if MD5_BINARY_MESH > 1 // WRITE
+	if (data_fd) fileSystem->CloseFile(data_fd);
+	#endif
+
+	#if MD5_BINARY_MESH > 0
+	if (load_data) {
+		char  datafile[MAX_OSPATH]; strcpy(datafile, name);
+		char* datatype = strstr(datafile, ".md5mesh"); // .MD5_MESH_EXT
+		if (datatype) {
+			datatype[4] = 'd';
+			datatype[5] = 'a';
+			datatype[6] = 't';
+			datatype[7] = 'a';
+			idFile* load_fd = fileSystem->OpenFileRead(datafile);
+			if (load_fd) {
+				for (i = 0; i < meshes.Num(); i++) {
+					meshes[i].FetchData(load_fd);
+				}
+				fileSystem->CloseFile(load_fd);
+			} else {
+				common->Error("MD5 binary data not found; %s\n", datafile);
+			}
+		}
+	}
+	#endif
 
 	//
 	// calculate the bounds of the model
@@ -761,7 +1043,6 @@ idRenderModel *idRenderModelMD5::InstantiateDynamicModel( const struct renderEnt
 			// only draw the skeleton
 			DrawJoints( ent, view );
 		}
-
 		if ( r_showSkel.GetInteger() > 1 ) {
 			// turn off the model when showing the skeleton
 			staticModel->InitEmpty( MD5_SnapshotName );
@@ -783,16 +1064,77 @@ idRenderModel *idRenderModelMD5::InstantiateDynamicModel( const struct renderEnt
 			continue;
 		}
 
+		#if MD5_ENABLE_GIBS > 0
+		if (mesh->gibStart) {
+			#if MD5_ENABLE_GIBS > 1
+			int gibIndex = (mesh->gibStart < 0 ? -mesh->gibStart : +mesh->gibStart);
+			int gibUntil = (mesh->gibUntil < 0 ? -mesh->gibUntil : +mesh->gibUntil);
+			for (; gibIndex <= gibUntil; gibIndex++) {
+				if (ent->gibbedZones & (1 << gibIndex)) break;
+			}
+			if (gibIndex > gibUntil) {
+			#else
+			int gibIndex = (mesh->gibStart < 0 ? -mesh->gibStart : +mesh->gibStart) - 1;
+			int gibUntil = (mesh->gibUntil < 0 ? -mesh->gibUntil : +mesh->gibUntil);
+			for (; gibIndex < gibUntil; gibIndex++) {
+				if (ent->gibbedZones & (1 << gibIndex)) break;
+			}
+			if (gibIndex == gibUntil) {
+			#endif
+				if (mesh->gibStart > 0) {
+					staticModel->DeleteSurfaceWithId(i);
+					mesh->surfaceNum = -1;
+					continue;
+				}
+			} else {
+				if (mesh->gibStart < 0) {
+					staticModel->DeleteSurfaceWithId(i);
+					mesh->surfaceNum = -1;
+					continue;
+				}
+			}
+		}
+		#endif
+
+		#if MD5_ENABLE_LODS > 0
+		if (mesh->lodUpper > 0.00f) {
+			float lodRange = (view ? (ent->origin - view->renderView.vieworg).LengthSqr() : 0.00f);
+			#if MD5_ENABLE_LODS > 1 // DEBUG
+			float lodSquare = r_lodRangeIncrements.GetFloat() * r_lodRangeIncrements.GetFloat();
+			lodRange = fminf(lodRange, lodSquare * r_lodLevelMaximum.GetFloat() * r_lodLevelMaximum.GetFloat());
+			lodRange = fmaxf(lodRange, lodSquare * r_lodLevelMinimum.GetFloat() * r_lodLevelMinimum.GetFloat());
+			#endif
+			if (lodRange < mesh->lodLower || lodRange >= mesh->lodUpper) {
+				staticModel->DeleteSurfaceWithId(i);
+				mesh->surfaceNum = -1;
+				continue;
+			}
+			#if MD5_ENABLE_LODS > 1 // DEBUG
+			if (ent->hModel->lodFrame < idLib::frameNumber) {
+				ent->hModel->lodFrame = idLib::frameNumber;
+				ent->hModel->lodIndex = ent->entityNum;
+				ent->hModel->lodCalls = 1;
+				ent->hModel->lodFaces = mesh->numTris;
+				ent->hModel->lodLevel = int(sqrtf(lodRange) / r_lodRangeIncrements.GetFloat());
+				ent->hModel->lodRange = lodRange;
+			} else if (ent->hModel->lodIndex == ent->entityNum && ent->hModel->lodCalls < ent->hModel->lodCount) {
+				ent->hModel->lodCalls += 1;
+				ent->hModel->lodFaces += mesh->numTris;
+				ent->hModel->lodLevel  = int(sqrtf(lodRange) / r_lodRangeIncrements.GetFloat());
+				ent->hModel->lodRange  = lodRange;
+			}
+			#endif
+		}
+		#endif
+
 		modelSurface_t *surf;
 
 		if ( staticModel->FindSurfaceWithId( i, surfaceNum ) ) {
 			mesh->surfaceNum = surfaceNum;
 			surf = &staticModel->surfaces[surfaceNum];
 		} else {
-
 			// Remove Overlays before adding new surfaces
 			idRenderModelOverlay::RemoveOverlaySurfacesFromModel( staticModel );
-
 			mesh->surfaceNum = staticModel->NumSurfaces();
 			surf = &staticModel->surfaces.Alloc();
 			surf->geometry = NULL;

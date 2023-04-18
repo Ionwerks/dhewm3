@@ -145,7 +145,21 @@ public:
 								idMD5Mesh();
 								~idMD5Mesh();
 
-	void						ParseMesh( idLexer &parser, int numJoints, const idJointMat *joints );
+	#if   MD5_BINARY_MESH > 2 // WRITE+
+	void						WriteData(idFile* data_fd);
+	void						FetchData(idFile* data_fd);
+	bool 						ParseMesh(idLexer& parser, int numJoints, const idJointMat* joints, idFile* data_fd = NULL, idFile* text_fd = NULL);
+	#elif MD5_BINARY_MESH > 1 // WRITE
+	void						WriteData(idFile* data_fd);
+	void						FetchData(idFile* data_fd);
+	bool 						ParseMesh(idLexer& parser, int numJoints, const idJointMat* joints, idFile* data_fd = NULL);
+	#elif MD5_BINARY_MESH > 0
+	void						FetchData(idFile* data_fd);
+	bool 						ParseMesh(idLexer& parser, int numJoints, const idJointMat* joints);
+	#else
+	void						ParseMesh(idLexer& parser, int numJoints, const idJointMat* joints);
+	#endif
+
 	void						UpdateSurface( const struct renderEntity_s *ent, const idJointMat *joints, modelSurface_t *surf );
 	idBounds					CalcBounds( const idJointMat *joints );
 	int							NearestJoint( int a, int b, int c ) const;
@@ -162,6 +176,17 @@ private:
 	int							numTris;			// number of triangles
 	struct deformInfo_s *		deformInfo;			// used to create srfTriangles_t from base frames and new vertexes
 	int							surfaceNum;			// number of the static surface created for this mesh
+
+	#if MD5_ENABLE_GIBS > 0
+	int							gibStart;
+	int							gibUntil;
+	int							gibSpurt;
+	#endif
+
+	#if MD5_ENABLE_LODS > 0
+	float                       lodLower;
+	float                       lodUpper;
+	#endif
 
 	void						TransformVerts( idDrawVert *verts, const idJointMat *joints );
 	void						TransformScaledVerts( idDrawVert *verts, const idJointMat *joints, float scale );

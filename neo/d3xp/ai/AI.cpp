@@ -1225,6 +1225,10 @@ void idAI::Think( void ) {
 	}
 */
 
+	#if MD5_ENABLE_GIBS > 0
+	Bleed();
+	#endif
+
 	UpdateMuzzleFlash();
 	UpdateAnimation();
 	UpdateParticles();
@@ -1238,6 +1242,34 @@ void idAI::Think( void ) {
 		gameRenderWorld->DrawText( va( "%d", ( int )health), this->GetEyePosition()+aboveHead, 0.5f, colorWhite, gameLocal.GetLocalPlayer()->viewAngles.ToMat3() );
 	}
 #endif
+
+	#if MD5_ENABLE_LODS > 1 // DEBUG
+	if (ai_showLevelOfDetail.GetBool()) {
+		idRenderModel* model = this->GetRenderEntity()->hModel;
+		if (model->lodIndex == this->entityNumber) {
+			int   calls = model->lodCalls;
+			int   faces = model->lodFaces;
+			int   level = model->lodLevel;
+			float range = model->lodRange;
+			if (head.GetEntity()) {
+				model = head.GetEntity()->GetRenderEntity()->hModel;
+				calls += model->lodCalls;
+				faces += model->lodFaces;
+			}
+			if (faces) {
+				idVec3 aboveHead(0.00f, 0.00f, 10.00f);
+				if (ai_showLevelOfDetail.GetInteger() > 2) {
+					gameRenderWorld->DrawText(va("%f",             range), this->GetEyePosition() + aboveHead, 0.2500f, colorWhite, gameLocal.GetLocalPlayer()->viewAngles.ToMat3());
+				} else if (ai_showLevelOfDetail.GetInteger() > 1) {
+					gameRenderWorld->DrawText(va("%d / %d", faces, level), this->GetEyePosition() + aboveHead, 0.2500f, colorWhite, gameLocal.GetLocalPlayer()->viewAngles.ToMat3());
+				} else {
+					gameRenderWorld->DrawText(va("%d / %d", faces, calls), this->GetEyePosition() + aboveHead, 0.2500f, colorWhite, gameLocal.GetLocalPlayer()->viewAngles.ToMat3());
+				}
+			}
+		}
+	}
+	#endif
+
 }
 
 /***********************************************************************
@@ -2469,6 +2501,16 @@ void idAI::Turn( void ) {
 	if ( animflags.ai_no_turn ) {
 		return;
 	}
+	#if MD5_ENABLE_GIBS > 0
+	if (renderEntity.gibbedZones & MD5_GIBBED_HEAD) {
+		static idVec3 old_pos = renderEntity.origin;
+		if ((old_pos - renderEntity.origin).LengthFast() > 0.50f) {
+			 old_pos = renderEntity.origin; return;
+		} else {
+			 old_pos = renderEntity.origin;
+		}
+	}
+	#endif
 
 	if ( anim_turn_angles && animflags.anim_turn ) {
 		idMat3 rotateAxis;

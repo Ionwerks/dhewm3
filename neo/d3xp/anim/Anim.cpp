@@ -34,6 +34,10 @@ If you have questions concerning this license or the applicable additional terms
 
 #include "anim/Anim.h"
 
+#if MD5_BINARY_ANIM > 0
+#include "framework/FileSystem.h"
+#endif
+
 bool idAnimManager::forceExport = false;
 
 /***********************************************************************
@@ -153,6 +157,121 @@ size_t idMD5Anim::Allocated( void ) const {
 	return size;
 }
 
+#if MD5_BINARY_ANIM > 1
+
+static unsigned int SwapInt32(unsigned int x) {
+	return static_cast<unsigned int>((x << 24) | ((x << 8) & 0x00FF0000) | ((x >> 8) & 0x0000FF00) | (x >> 24));
+}
+
+static float SwapFloat(float x) {
+	union { float f; unsigned int ui32; } swapper;
+	swapper.f = x;
+	swapper.ui32 = SwapInt32(swapper.ui32);
+	return swapper.f;
+}
+
+#define SWAP_FLOAT(f) f = SwapFloat(f)
+#define SWAP_WHOLE(i) i = SwapInt32(i)
+
+#else
+
+#define SWAP_FLOAT(f)
+#define SWAP_WHOLE(i)
+
+#endif
+
+#if MD5_BINARY_ANIM > 0
+
+static const byte B_ANIM_MD5_VERSION = 101;
+static const unsigned int B_ANIM_MD5_MAGIC = ('B' << 24) | ('M' << 16) | ('D' << 8) | B_ANIM_MD5_VERSION;
+
+/* ====================
+idMD5Anim::LoadBinary
+==================== */
+bool idMD5Anim::LoadBinary(const char* filename, const char* baseFolder) {
+
+	idFile* file = NULL;
+
+	if (baseFolder && baseFolder[0]) {
+		file = idLib::fileSystem->OpenFileRead(va("%s/%s", baseFolder, filename));
+	} else {
+		file = idLib::fileSystem->OpenFileRead(filename);
+	}
+
+	// ---------------------------------------------------------
+
+	if (file == NULL) return false;
+
+	unsigned int number;
+
+	file->ReadUnsignedInt(number); SWAP_WHOLE(number);
+	if (number != B_ANIM_MD5_MAGIC) {
+		idLib::fileSystem->CloseFile(file);
+		return false;
+	}
+
+	file->ReadUnsignedInt(number); // ID_TIME_T 1/2
+	file->ReadUnsignedInt(number); // ID_TIME_T 2/2
+
+	file->ReadInt(numFrames);  SWAP_WHOLE(numFrames);
+	file->ReadInt(frameRate);  SWAP_WHOLE(frameRate);
+	file->ReadInt(animLength); SWAP_WHOLE(animLength);
+	file->ReadInt(numJoints);  SWAP_WHOLE(numJoints);
+	file->ReadInt(numAnimatedComponents); SWAP_WHOLE(numAnimatedComponents);
+
+	file->ReadUnsignedInt(number); SWAP_WHOLE(number); bounds.SetNum(number);
+	for (int i = 0; i < number; i++) {
+		idBounds& b = bounds[i];
+		file->ReadFloat(b[0].x); SWAP_FLOAT(b[0].x);
+		file->ReadFloat(b[0].y); SWAP_FLOAT(b[0].y);
+		file->ReadFloat(b[0].z); SWAP_FLOAT(b[0].z);
+		file->ReadFloat(b[1].x); SWAP_FLOAT(b[1].x);
+		file->ReadFloat(b[1].y); SWAP_FLOAT(b[1].y);
+		file->ReadFloat(b[1].z); SWAP_FLOAT(b[1].z);
+	}
+
+	file->ReadUnsignedInt(number); SWAP_WHOLE(number); jointInfo.SetNum(number);
+	for (int i = 0; i < number; i++) {
+		jointAnimInfo_t& j = jointInfo[i];
+		idStr jointName; file->ReadString(jointName);
+		if (jointName.IsEmpty()) {
+			j.nameIndex = -1;
+		} else {
+			j.nameIndex = animationLib.JointIndex(jointName.c_str());
+		}
+		file->ReadInt(j.parentNum); SWAP_WHOLE(j.parentNum);
+		file->ReadInt(j.animBits); SWAP_WHOLE(j.animBits);
+		file->ReadInt(j.firstComponent); SWAP_WHOLE(j.firstComponent);
+	//	common->Printf("\t\"%s\" %i %i\n", jointName.c_str(), j.parentNum, j.animBits, j.firstComponent);
+	}
+
+	file->ReadUnsignedInt(number); SWAP_WHOLE(number); baseFrame.SetNum(number);
+	for (int i = 0; i < number; i++) {
+		idJointQuat& j = baseFrame[i];
+		file->ReadFloat(j.q.x); SWAP_FLOAT(j.q.x);
+		file->ReadFloat(j.q.y); SWAP_FLOAT(j.q.y);
+		file->ReadFloat(j.q.z); SWAP_FLOAT(j.q.z);
+		file->ReadFloat(j.q.w); SWAP_FLOAT(j.q.w);
+		file->ReadVec3(j.t); // No swap.
+	//	j.w = 0.00f;
+	//	common->Printf("\t(%f %f %f) (%f %f %f)\n", j.t.x, j.t.y, j.t.z, j.q.x, j.q.y, j.q.z);
+	}
+
+	file->ReadUnsignedInt(number); SWAP_WHOLE(number); componentFrames.SetNum(number + 1); // One extra to be able to read one more float than is necessary.
+	for (int i = 0; i < componentFrames.Num(); i++) {
+		file->ReadFloat(componentFrames[i]); // No swap.
+	}
+
+	file->ReadVec3(totaldelta); // No swap.
+
+	idLib::fileSystem->CloseFile(file);
+
+	return true;
+
+}
+
+#endif
+
 /*
 ====================
 idMD5Anim::LoadAnim
@@ -164,6 +283,10 @@ bool idMD5Anim::LoadAnim( const char *filename ) {
 	idToken	token;
 	int		i, j;
 	int		num;
+
+	#if MD5_BINARY_ANIM > 0
+	if (LoadBinary(filename, idLexer::GetBaseFolder())) return true;
+	#endif
 
 	if ( !parser.LoadFile( filename ) ) {
 		return false;

@@ -31,6 +31,8 @@ If you have questions concerning this license or the applicable additional terms
 
 #include "framework/CVarSystem.h"
 
+#include "renderer/Model.h" // MD5_ENABLE_LODS
+
 extern idCVar	developer;
 
 extern idCVar	g_cinematic;
@@ -97,6 +99,10 @@ extern idCVar	ai_showObstacleAvoidance;
 extern idCVar	ai_blockedFailSafe;
 #ifdef _D3XP
 extern idCVar	ai_showHealth;
+#endif
+
+#if MD5_ENABLE_LODS > 1 // DEBUG
+extern idCVar	ai_showLevelOfDetail;
 #endif
 
 extern idCVar	g_dvTime;

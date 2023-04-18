@@ -46,6 +46,69 @@ If you have questions concerning this license or the applicable additional terms
 #define MD5_ANIM_EXT			"md5anim"
 #define MD5_CAMERA_EXT			"md5camera"
 #define MD5_VERSION				10
+#define MD5_ENABLE_LODS			3 // 0=Disable, 1=Enable, 2=1+ai_showLevelOfDetail, 3=2+r_testUnsmoothedTangents
+#define MD5_ENABLE_GIBS			2 // 0=Disable, 1=Enable, 2=Enable+optimiseDamageGroups, 3=Enable+optimiseDamageGroups+Print
+#define MD5_GIBBED_HEAD			2 //            1=Enable, 2=Enable+optimiseDamageGroups
+#define MD5_GIBBED_PAIN			3.00f
+#define MD5_BINARY_MESH			4 // 0=Disable, 1=Enable, 2=1+binaryExport, 3=1+binaryExport+Text, 4=1+binaryExport+Text+Save
+#define MD5_BINARY_ANIM			1 // 0=Disable, 1=Enable, 2=EnableBFG(BigEndian)
+
+/* ===================================================================================================
+MD5_ENABLE_LODS: A simple level-of-detail mechanism based on decorating MD5 mesh names as shown below;
+	models/characters/male_npc/marine/marine/lod_0_2
+	models/characters/male_npc/marine/marine/lod_2_5
+	models/characters/male_npc/marine/marine/lod_5_9
+------------------------------------------------------------------------------------------------------
+Multiple meshes should cover steps 0-9 which by default (per r_lodRangeIncrements) extend out 90 feet.
+Once parsed the decoration is stripped from the name with the remainder becoming the effective shader.
+UPDATED: Range steps may now encompass 0-Z (use uppercase) yielding 0-35 steps * r_lodRangeIncrements.
+------------------------------------------------------------------------------------------------------
+Content may be packaged such that only the first LOD is shown on systems without this patch by either;
+a) Including a materials file which defines a shader for the first (decorated) LOD then all others as;
+	nonsolid
+	noshadows
+b) Including a skin file aliasing the first (decorated) LOD to some existing shader and all others to;
+	"textures/common/nodraw"
+------------------------------------------------------------------------------------------------------
+The ai_showLevelOfDetail implementation is not pretty (passing the mesh/face count out via properties
+added to idRenderModel) but is sufficient for development/testing. Set MD5_ENABLE_LODS=1 for releases.
+=================================================================================================== */
+
+/* ===================================================================================================
+MD5_ENABLE_GIBS: TODO
+=================================================================================================== */
+
+/* ===================================================================================================
+MD5_BINARY_MESH: A mechanism to read binarised mesh data from an md5data file adjacent to the md5mesh.
+In which case vert/tri/weight data is removed from the md5mesh leaving a simplified mesh block like;
+mesh {
+	shader "models/characters/male_npc/marine/marine/lod_0_2"
+	numverts 2362
+	numtris 4158
+	numweights 6439
+}
+It should be possible to mix conventional and binarised mesh blocks in the same md5mesh file. The
+order of the binarised blocks is significant when the binary data is read back (must be retained).
+MD5_BINARY_MESH > 0 Enable loading of a binarised MD5 model.
+MD5_BINARY_MESH > 1 Enable writing of a binarised MD5 model. If the 'commandline' key/pair value
+                    starts with "binary-export" the remainder is expected to specify a DOS path to a
+					target file for the binarised mesh data. For example;
+                    commandline "binary-export E:\DOOM3\OUT\pak452\models\md5\chars\marine.md5data"
+MD5_BINARY_MESH > 2 As above but will also write the simplified md5mesh file alongside the data file.
+MD5_BINARY_MESH > 3 As above but will also write the original md5mesh with an 'md5save' extension.
+=================================================================================================== */
+
+/* ===================================================================================================
+MD5_BINARY_ANIM: TODO
+=================================================================================================== */
+
+/* ===================================================================================================
+RBMIKKT_TANGENT: My attempt to port the support for mikkt tangent-space from RB-DOOM3-BFG. As far as I
+can see this should be working but comparisons made with bakes provided by Arl suggest some divergence
+from RenderBump - though that may just be down to differences in the baking - no further testing done.
+Enabled by including 'mikktspace' in the material definition.
+idTech4 Discord https://discord.com/channels/488393111014342656/488393514690805790/1053987460452982865
+=================================================================================================== */
 
 // using shorts for triangle indexes can save a significant amount of traffic, but
 // to support the large models that renderBump loads, they need to be 32 bits
@@ -312,6 +375,24 @@ public:
 	// Writing to and reading from a demo file.
 	virtual void				ReadFromDemoFile( class idDemoFile *f ) = 0;
 	virtual void				WriteToDemoFile( class idDemoFile *f ) = 0;
+
+	#if MD5_ENABLE_GIBS > 0
+	int   gibZones;
+	int   gibBleed;
+	int   gibSmoke;
+	int   gibSpark;
+	#endif
+
+	#if MD5_ENABLE_LODS > 1 // DEBUG
+	int   lodFrame;
+	int   lodIndex;
+	int   lodCount;
+	int   lodCalls;
+	int   lodFaces;
+	int   lodLevel;
+	float lodRange;
+	#endif
+
 };
 
 #endif /* !__MODEL_H__ */

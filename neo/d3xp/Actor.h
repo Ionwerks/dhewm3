@@ -33,6 +33,8 @@ If you have questions concerning this license or the applicable additional terms
 #include "IK.h"
 #include "PlayerView.h"
 
+#include "renderer/Model.h" // MD5_ENABLE_GIBS
+
 /*
 ===============================================================================
 
@@ -211,6 +213,9 @@ public:
 	const char *			WaitState( void ) const;
 	void					SetWaitState( const char *_waitstate );
 	bool					AnimDone( int channel, int blendFrames ) const;
+	#if MD5_ENABLE_GIBS > 0
+	void					Bleed(int gibbedZone = 0, int location = 0);
+	#endif
 	virtual void			SpawnGibs( const idVec3 &dir, const char *damageDefName );
 
 #ifdef _D3XP
@@ -230,8 +235,25 @@ protected:
 	int						pain_delay;			// time between playing pain sound
 	int						pain_threshold;		// how much damage monster can take at any one time before playing pain animation
 
+	#if MD5_ENABLE_GIBS > 0
+	const idDeclParticle*	damageEffect;
+	int						damageEffectCycle;
+	int						damageEffectStart;
+	jointHandle_t			damageEffectJoint;
+	idMat3					damageEffectAngle;
+	#endif
+
+	#if MD5_ENABLE_GIBS > 1
+	idList<int>				damageBonesZone;
+	idList<int>				damageZonesBone;
+	idList<float>			damageZonesRate;
+	idStrList				damageZonesName;
+	#else
+	idList<int>				damageZones;
+	idList<int>				damageBones;
 	idStrList				damageGroups;		// body damage groups
-	idList<float>			damageScale;		// damage scale per damage gruop
+	idList<float>			damageScales;		// damage scale per damage gruop
+	#endif
 
 	bool						use_combat_bbox;	// whether to use the bounding box for combat collision
 	idEntityPtr<idAFAttachment>	head;

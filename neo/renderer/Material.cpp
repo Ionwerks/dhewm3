@@ -108,6 +108,7 @@ void idMaterial::CommonInit() {
 	hasSubview = false;
 	allowOverlays = true;
 	unsmoothedTangents = false;
+	mikktspace = false; // RBMIKKT_TANGENT
 	gui = NULL;
 	memset( deformRegisters, 0, sizeof( deformRegisters ) );
 	editorAlpha = 1.0;
@@ -1954,6 +1955,12 @@ void idMaterial::ParseMaterial( idLexer &src ) {
 			unsmoothedTangents = true;
 			continue;
 		}
+		// RBMIKKT_TANGENT...
+		else if (!token.Icmp("mikktspace")) {
+			mikktspace = true;
+			continue;
+		}
+		// ...RBMIKKT_TANGENT
 		// lightFallofImage <imageprogram>
 		// specifies the image to use for the third axis of projected
 		// light volumes

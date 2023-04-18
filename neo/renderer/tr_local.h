@@ -879,6 +879,15 @@ extern idCVar r_useEntityCallbacks;		// if 0, issue the callback immediately at 
 extern idCVar r_lightAllBackFaces;		// light all the back faces, even when they would be shadowed
 extern idCVar r_useDepthBoundsTest;     // use depth bounds test to reduce shadow fill
 
+#if MD5_ENABLE_LODS > 0
+extern idCVar r_lodRangeIncrements;
+#endif
+
+#if MD5_ENABLE_LODS > 1 // DEBUG
+extern idCVar r_lodLevelMaximum;
+extern idCVar r_lodLevelMinimum;
+#endif
+
 extern idCVar r_skipPostProcess;		// skip all post-process renderings
 extern idCVar r_skipSuppress;			// ignore the per-view suppressions
 extern idCVar r_skipInteractions;		// skip all light/surface interaction drawing
@@ -911,6 +920,9 @@ extern idCVar r_forceLoadImages;		// draw all images to screen after registratio
 extern idCVar r_demonstrateBug;			// used during development to show IHV's their problems
 extern idCVar r_screenFraction;			// for testing fill rate, the resolution of the entire screen can be changed
 
+#if MD5_ENABLE_LODS > 2 // DEBUG+
+extern idCVar r_testUnsmoothedTangents;
+#endif
 extern idCVar r_showUnsmoothedTangents;	// highlight geometry rendered with unsmoothed tangents
 extern idCVar r_showSilhouette;			// highlight edges that are casting shadow planes
 extern idCVar r_showVertexColor;		// draws all triangles with the solid vertex color
@@ -1472,7 +1484,7 @@ void				R_RemoveUnusedVerts( srfTriangles_t *tri );
 void				R_RangeCheckIndexes( const srfTriangles_t *tri );
 void				R_CreateVertexNormals( srfTriangles_t *tri );	// also called by dmap
 void				R_DeriveFacePlanes( srfTriangles_t *tri );		// also called by renderbump
-void				R_CleanupTriangles( srfTriangles_t *tri, bool createNormals, bool identifySilEdges, bool useUnsmoothedTangents );
+void				R_CleanupTriangles( srfTriangles_t *tri, bool createNormals, bool identifySilEdges, bool useUnsmoothedTangents, bool useMikktspace = false ); // RBMIKKT_TANGENT
 void				R_ReverseTriangles( srfTriangles_t *tri );
 
 // Only deals with vertexes and indexes, not silhouettes, planes, etc.
@@ -1486,6 +1498,24 @@ void				R_DeriveTangents( srfTriangles_t *tri, bool allocFacePlanes = true );
 
 // deformable meshes precalculate as much as possible from a base frame, then generate
 // complete srfTriangles_t from just a new set of vertexes
+#if MD5_BINARY_MESH > 0
+typedef struct deformInfo_s { // NB: Better pointer alignment, adds; numDominantTris, numWeights
+	int				numSourceVerts;
+	int				numOutputVerts;
+	int				numIndexes;
+	int				numSilEdges;
+	int				numDupVerts;
+	int				numMirroredVerts;
+	int				numDominantTris;
+	int				numWeights;
+	glIndex_t*		indexes;
+	glIndex_t*		silIndexes;
+	silEdge_t*		silEdges;
+	int*			dupVerts;
+	int*			mirroredVerts;
+	dominantTri_t*	dominantTris;
+} deformInfo_t;
+#else
 typedef struct deformInfo_s {
 	int				numSourceVerts;
 
@@ -1510,7 +1540,16 @@ typedef struct deformInfo_s {
 
 	dominantTri_t *	dominantTris;
 } deformInfo_t;
+#endif
 
+#if MD5_BINARY_MESH > 0
+deformInfo_t*		R_AllocDeformInfo();
+void				R_AllocDeformInfo(deformInfo_t* deformInfo);
+#endif
+
+#if MD5_BINARY_MESH > 1 // WRITE
+void				R_FreeDeformInfoDominantTris(deformInfo_t* deformInfo);
+#endif
 
 deformInfo_t *		R_BuildDeformInfo( int numVerts, const idDrawVert *verts, int numIndexes, const int *indexes, bool useUnsmoothedTangents );
 void				R_FreeDeformInfo( deformInfo_t *deformInfo );

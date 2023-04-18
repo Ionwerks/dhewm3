@@ -248,6 +248,9 @@ public:
 	size_t					Allocated( void ) const;
 	size_t					Size( void ) const { return sizeof( *this ) + Allocated(); };
 	bool					LoadAnim( const char *filename );
+	#if MD5_BINARY_ANIM > 0
+	bool					LoadBinary(const char* filename, const char* baseFolder);
+	#endif
 
 	void					IncreaseRefs( void ) const;
 	void					DecreaseRefs( void ) const;

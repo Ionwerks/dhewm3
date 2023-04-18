@@ -1,3 +1,76 @@
+# DEFUNKT'S DHEWM3 EDITS
+
+A testbed for features destined for Doom3Quest.
+
+[![Level-of-Detail Latest](https://img.youtube.com/vi/_VqLW03Kzsc/0.jpg)](https://www.youtube.com/watch?v=_VqLW03Kzsc)
+
+[![Level-of-Detail Original](https://img.youtube.com/vi/qex6Xa_3G2c/0.jpg)](https://www.youtube.com/watch?v=qex6Xa_3G2c)
+
+### MD5_ENABLE_LODS
+
+A simple level-of-detail mechanism based on decorating MD5 mesh names as shown below;
+
+`	models/characters/male_npc/marine/marine/lod_0_2`
+
+`	models/characters/male_npc/marine/marine/lod_2_5`
+
+`	models/characters/male_npc/marine/marine/lod_5_9`
+
+Multiple meshes should cover steps 0-9 which by default (per _r_lodRangeIncrements_) extend out 90 feet.
+Once parsed the decoration is stripped from the name with the remainder becoming the effective material.
+
+UPDATE: Range steps may now encompass 0-Z (use uppercase) yielding 0-35 steps * _r_lodRangeIncrements_.
+
+Content may be packaged such that only the first LOD is shown on systems without this patch by either;
+
+a)	Including a materials file which defines a shader for the first (decorated) LOD then all others as;  
+>	`nonsolid`  
+>	`noshadows`
+
+b)	Including a skin file aliasing the first (decorated) LOD to some existing shader and all others to;
+>	`"textures/common/nodraw"`
+
+The _ai_showLevelOfDetail_ implementation is not pretty (passing the mesh/face count out via properties
+added to idRenderModel) but is sufficient for development/testing. Set MD5_ENABLE_LODS=1 for releases.
+
+### MD5_BINARY_DATA
+
+A mechanism to read binarised mesh data from an md5data file adjacent to the md5mesh.
+
+In which case vert/tri/weight data is removed from the md5mesh leaving a simplified mesh block like;
+
+	mesh {
+		shader "models/characters/male_npc/marine/marine/lod_0_2"
+		numverts 2362
+		numtris 4158
+		numweights 6439
+	}
+
+It should be possible to mix conventional and binarised mesh blocks in the same md5mesh file. The
+order of the binarised blocks is significant when the binary data is read back (original order must be preserved).
+
+_MD5_BINARY_DATA_ > 0 Enable loading of a binarised MD5 model.
+
+_MD5_BINARY_DATA_ > 1 Enable writing of a binarised MD5 model.
+
+If the 'commandline' key/pair value starts with "binary-export" the remainder is expected to specify a DOS path to a target file for the binarised mesh data. For example;
+
+> commandline "binary-export E:\DOOM3\OUT\pak452\models\md5\chars\marine.md5data"
+
+_MD5_BINARY_DATA_ > 2 As above but will also write the simplified md5mesh file alongside the data file.
+
+_MD5_BINARY_DATA_ > 3 As above but will also write the original md5mesh with an 'md5save' extension.
+
+### RBMIKKT_TANGENT
+
+My attempt to port the support for mikkt tangent-space from RB-DOOM3-BFG. As far as I can see this should be working but comparisons made with bakes provided by Arl suggest some divergence from RenderBump - no further testing done.
+
+Enabled by including _mikktspace_ in the material definition.
+
+idTech4 Discord: https://discord.com/channels/488393111014342656/488393514690805790/1053987460452982865
+
+Originally added to RB-DOOM3-BFG by https://github.com/stephenap07 using the implementation by Morten S. Mikkelsen.
+
 # ABOUT
 
 _dhewm 3_ is a _Doom 3_ GPL source port, known to work on at least Windows, Linux, macOS and FreeBSD.

@@ -536,6 +536,10 @@ void idSaveGame::WriteRenderEntity( const renderEntity_t &renderEntity ) {
 		WriteUserInterface( renderEntity.gui[ i ], renderEntity.gui[ i ] ? renderEntity.gui[ i ]->IsUniqued() : false );
 	}
 
+	#if MD5_ENABLE_GIBS > 0
+	WriteInt(renderEntity.gibbedZones);
+	#endif
+
 	WriteFloat( renderEntity.modelDepthHack );
 
 	WriteBool( renderEntity.noSelfShadow );
@@ -1308,6 +1312,10 @@ void idRestoreGame::ReadRenderEntity( renderEntity_t &renderEntity ) {
 	for( i = 0; i < MAX_RENDERENTITY_GUI; i++ ) {
 		ReadUserInterface( renderEntity.gui[ i ] );
 	}
+
+	#if MD5_ENABLE_GIBS > 0
+	ReadInt(renderEntity.gibbedZones);
+	#endif
 
 	// idEntity will restore "cameraTarget", which will be used in idEntity::Present to restore the remoteRenderView
 	renderEntity.remoteRenderView = NULL;

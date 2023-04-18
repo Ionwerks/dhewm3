@@ -30,7 +30,7 @@ If you have questions concerning this license or the applicable additional terms
 #include "idlib/geometry/DrawVert.h"
 #include "framework/File.h"
 #include "renderer/RenderWorld.h"
-
+#include "renderer/Model.h" // MD5_ENABLE_GIBS
 #include "framework/DeclParticle.h"
 
 struct ParticleParmDesc {
@@ -1129,7 +1129,11 @@ int	idParticleStage::ParticleVerts( particleGen_t *g, idVec3 origin, idDrawVert 
 	//
 	float	angle;
 
-	angle = ( initialAngle ) ? initialAngle : 360 * g->random.RandomFloat();
+	#if MD5_ENABLE_GIBS > 0
+	angle = (initialAngle > 0.00f) ? initialAngle : 360 * g->random.RandomFloat(); if (initialAngle < 0.00f) angle -= fmodf(angle, -initialAngle);
+	#else
+	angle = (initialAngle) ? initialAngle : 360 * g->random.RandomFloat();
+	#endif
 
 	float	angleMove = rotationSpeed.Integrate( g->frac, g->random ) * particleLife;
 	// have hald the particles rotate each way

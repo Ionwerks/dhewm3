@@ -572,6 +572,9 @@ void	idRenderWorldLocal::WriteRenderEntity( qhandle_t handle, const renderEntity
 		session->writeDemo->WriteFloat( ent->shaderParms[i] );
 	for ( int i = 0; i < MAX_RENDERENTITY_GUI; i++ )
 		session->writeDemo->WriteInt( ent->gui[i] ? 1 : 0 );
+	// #if MD5_ENABLE_GIBS > 0
+	// session->writeDemo->WriteInt(ent->gibbedZones);
+	// #endif
 	session->writeDemo->WriteInt( 0 ); //ent->remoteRenderView
 	session->writeDemo->WriteInt( ent->numJoints );
 	session->writeDemo->WriteInt( 0 ); //ent->joints
@@ -674,6 +677,9 @@ void	idRenderWorldLocal::ReadRenderEntity() {
 	for ( i = 0; i < MAX_RENDERENTITY_GUI; i++ ) {
 		session->readDemo->ReadInt( gui[i] );
 	}
+	// #if MD5_ENABLE_GIBS > 0
+	// ent.gibbedZones = 0; // session->readDemo->ReadInt(ent.gibbedZones);
+	// #endif
 	session->readDemo->ReadInt( tmp ); //ent.remoteRenderView
 	session->readDemo->ReadInt( ent.numJoints );
 	session->readDemo->ReadInt( tmp ); //ent.joints
