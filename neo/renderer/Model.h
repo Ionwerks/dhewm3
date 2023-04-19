@@ -51,7 +51,45 @@ If you have questions concerning this license or the applicable additional terms
 #define MD5_GIBBED_HEAD			2 //            1=Enable, 2=Enable+optimiseDamageGroups
 #define MD5_GIBBED_PAIN			3.00f
 #define MD5_BINARY_MESH			4 // 0=Disable, 1=Enable, 2=1+binaryExport, 3=1+binaryExport+Text, 4=1+binaryExport+Text+Save
-#define MD5_BINARY_ANIM			1 // 0=Disable, 1=Enable, 2=EnableBFG(BigEndian)
+#define MD5_BINARY_ANIM			1 // 0=Disable, 1=Enable, 2=Enable-bigEndian
+#define IMG_ENABLE_PNGS			1 // 0=Disable, 1=Enable
+
+/* ===================================================================================================
+MD5_ENABLE_GIBS: TODO
+default			  1
+cyberdemon	1.00	150
+sabaoth			 50
+vagary		2.00
+archvile	2.00
+cherub		1.25
+bruiser		2.00
+hellknight	2.00	 25
+imp		2.00
+imp_crawler	1.25
+maggot		1.50
+mancubus	1.50	 16
+pinky		1.00
+revenant	2.00
+sentry		1.25
+tick		1.00
+trite		1.00
+vulgar		2.00
+wraith		2.00
+bernie		2.00
+boney		2.00
+chainsaw	2.00
+commando	2.00
+commando_cg	2.00
+fatty		2.00
+zombie		2.00
+jumpsuit	2.00
+maintenance	2.00
+morgue		1.25
+sawyer		2.00
+zsec_pistol	1.25
+zsec_shield	1.25
+?		1.25
+=================================================================================================== */
 
 /* ===================================================================================================
 MD5_ENABLE_LODS: A simple level-of-detail mechanism based on decorating MD5 mesh names as shown below;
@@ -75,10 +113,6 @@ added to idRenderModel) but is sufficient for development/testing. Set MD5_ENABL
 =================================================================================================== */
 
 /* ===================================================================================================
-MD5_ENABLE_GIBS: TODO
-=================================================================================================== */
-
-/* ===================================================================================================
 MD5_BINARY_MESH: A mechanism to read binarised mesh data from an md5data file adjacent to the md5mesh.
 In which case vert/tri/weight data is removed from the md5mesh leaving a simplified mesh block like;
 mesh {
@@ -89,7 +123,7 @@ mesh {
 }
 It should be possible to mix conventional and binarised mesh blocks in the same md5mesh file. The
 order of the binarised blocks is significant when the binary data is read back (must be retained).
-MD5_BINARY_MESH > 0 Enable loading of a binarised MD5 model.
+MD5_BINARY_MESH > 0 Enable reading of a binarised MD5 model.
 MD5_BINARY_MESH > 1 Enable writing of a binarised MD5 model. If the 'commandline' key/pair value
                     starts with "binary-export" the remainder is expected to specify a DOS path to a
 					target file for the binarised mesh data. For example;
@@ -99,7 +133,16 @@ MD5_BINARY_MESH > 3 As above but will also write the original md5mesh with an 'm
 =================================================================================================== */
 
 /* ===================================================================================================
-MD5_BINARY_ANIM: TODO
+MD5_BINARY_ANIM: Adds support for loading binarised md5anim files. If the load fails an attempt will
+then be made to parse the original text format.
+_MD5_BINARY_ANIM_ > 0 Load binarised MD5 animations in the BFG layout with Little Endian values only.
+_MD5_BINARY_ANIM_ > 1 Load binarised MD5 animations in the BFG layout with mixed Endianness (per-BFG).
+=================================================================================================== */
+
+/* ===================================================================================================
+IMG_ENABLE_PNGS: Quick hack to make PNG the default texture format with TGA or JPG as fallbacks. There
+are reasonable arguments as to why this is a bad idea for releases but it suits my development needs.
+Dhewm3 Issue https://github.com/dhewm/dhewm3/issues/171
 =================================================================================================== */
 
 /* ===================================================================================================

@@ -174,7 +174,20 @@ void idMD5Mesh::ParseMesh(idLexer &parser, int numJoints, const idJointMat *join
 	#endif
 
 	#if MD5_BINARY_MESH > 2 // WRITE+
-	if (text_fd) text_fd->Printf("mesh {\n\tshader \"%s\"\n", shaderName.c_str());
+	if (text_fd) {
+		#if MD5_ENABLE_GIBS > 0
+		const char* spurts[4] = {"", "%", "$", "#"};
+		if (gibStart == 0) {
+			text_fd->Printf("mesh {\n\tshader \"%s\"\n",               shaderName.c_str()                                                                           );
+		} else if (gibStart != gibUntil) {
+			text_fd->Printf("mesh {\n\tshader \"%s\" // %s:%i%s\n",    shaderName.c_str(), gibStart > 0 ? "SHOW" : "HIDE", gibStart,           spurts[abs(gibSpurt)]);
+		} else {
+			text_fd->Printf("mesh {\n\tshader \"%s\" // %s:%i-%i%s\n", shaderName.c_str(), gibStart > 0 ? "SHOW" : "HIDE", gibStart, gibUntil, spurts[abs(gibSpurt)]);
+		}
+		#else
+		text_fd->Printf("mesh {\n\tshader \"%s\"\n", shaderName.c_str());
+		#endif
+	}
 	#endif
 
 	#if MD5_ENABLE_LODS > 0
@@ -358,7 +371,7 @@ void idMD5Mesh::ParseMesh(idLexer &parser, int numJoints, const idJointMat *join
 /* ====================
 idMD5Mesh::WriteData
 ==================== */
-void idMD5Mesh::WriteData(idFile* data_fd) { // NB: Binarisation is not strictly portable; presumes int and float are each of 4-bytes (and big-endian).
+void idMD5Mesh::WriteData(idFile* data_fd) { // NB: Binarisation is not strictly portable; presumes int and float are each of 4-bytes (and little-endian).
 
 	deformInfo->numDominantTris = deformInfo->dominantTris ? deformInfo->numOutputVerts : 0;
 	deformInfo->numWeights      = numWeights; // NB: May be expanded by R_BuildDeformInfo.

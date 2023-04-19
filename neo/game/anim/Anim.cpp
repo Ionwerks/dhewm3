@@ -265,6 +265,56 @@ bool idMD5Anim::LoadBinary(const char* filename, const char* baseFolder) {
 
 	file->ReadVec3(totaldelta); // No swap.
 
+	#if 0
+
+	idVec3 totaldeltatest;
+	if (numAnimatedComponents) {
+		float* componentPtr = &componentFrames[jointInfo[0].firstComponent];
+		if (jointInfo[0].animBits & ANIM_TX) {
+			for (int i = 0; i < numFrames; i++) {
+				componentPtr[numAnimatedComponents * i] -= baseFrame[0].t.x;
+			}
+			totaldeltatest.x = componentPtr[numAnimatedComponents * (numFrames - 1)];
+			componentPtr++;
+		} else {
+			totaldeltatest.x = 0.0f;
+		}
+		if (jointInfo[0].animBits & ANIM_TY) {
+			for (int i = 0; i < numFrames; i++) {
+				componentPtr[numAnimatedComponents * i] -= baseFrame[0].t.y;
+			}
+			totaldeltatest.y = componentPtr[numAnimatedComponents * (numFrames - 1)];
+			componentPtr++;
+		} else {
+			totaldeltatest.y = 0.0f;
+		}
+		if (jointInfo[0].animBits & ANIM_TZ) {
+			for (int i = 0; i < numFrames; i++) {
+				componentPtr[numAnimatedComponents * i] -= baseFrame[0].t.z;
+			}
+			totaldeltatest.z = componentPtr[numAnimatedComponents * (numFrames - 1)];
+		//	componentPtr++;
+		} else {
+			totaldeltatest.z = 0.0f;
+		}
+	} else {
+		totaldeltatest.Zero();
+	}
+//	baseFrame[0].t.Zero();
+
+	if (totaldelta != totaldeltatest) {
+		common ->Printf("TOTALDELTA: %f,%f,%f > %f,%f,%f / %f,%f,%f > 0 ~ %s\n", totaldelta.x, totaldelta.y, totaldelta.z, totaldeltatest.x, totaldeltatest.y, totaldeltatest.z, baseFrame[0].t.x, baseFrame[0].t.y, baseFrame[0].t.z, filename);
+		totaldelta = totaldeltatest; baseFrame[0].t.Zero();
+	}
+
+	int animLengthTest = ((numFrames - 1) * 1000 + frameRate - 1) / frameRate;
+	if (animLength != animLengthTest) {
+		common->Printf("ANIMLENGTH: %i > %i\n", animLength, animLengthTest);
+		animLength = animLengthTest;
+	}
+	
+	#endif
+
 	idLib::fileSystem->CloseFile(file);
 
 	return true;

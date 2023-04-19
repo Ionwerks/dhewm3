@@ -26,18 +26,23 @@ If you have questions concerning this license or the applicable additional terms
 ===========================================================================
 */
 
+#include "renderer/tr_local.h" // IMG_ENABLE_PNGS
+
 // DG: replace libjpeg with stb_image.h because it causes fewer headaches
 // include this first, otherwise build breaks because of  use_idStr_* #defines in Str.h
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_NO_HDR
 #define STBI_NO_LINEAR
 #define STBI_ONLY_JPEG // at least for now, only use it for JPEG
+#if IMG_ENABLE_PNGS > 0
+#define STBI_ONLY_PNG
+#endif
 #define STBI_NO_STDIO  // images are passed as buffers
 #include "stb_image.h"
 
 #include "sys/platform.h"
 
-#include "renderer/tr_local.h"
+// IMG_ENABLE_PNGS #include "renderer/tr_local.h"
 
 #include "renderer/Image.h"
 
@@ -789,6 +794,7 @@ static void LoadJPG( const char *filename, unsigned char **pic, int *width, int 
 
 	Mem_Free( fbuffer );
 
+
 	if ( decodedImageData == NULL ) {
 		common->Warning( "stb_image was unable to load JPG %s : %s\n",
 					filename, stbi_failure_reason());
@@ -860,12 +866,23 @@ void R_LoadImage( const char *cname, byte **pic, int *width, int *height, ID_TIM
 	name.ExtractFileExtension( ext );
 
 	if ( ext == "tga" ) {
-		LoadTGA( name.c_str(), pic, width, height, timestamp );            // try tga first
-		if ( ( pic && *pic == 0 ) || ( timestamp && *timestamp == FILE_NOT_FOUND_TIMESTAMP ) ) {
+		#if IMG_ENABLE_PNGS > 0
+		name.StripFileExtension();
+		name.DefaultFileExtension(".png");
+		LoadJPG(name.c_str(), pic, width, height, timestamp); // Will also load a PNG.
+		if ((pic && *pic == 0) || (timestamp && *timestamp == FILE_NOT_FOUND_TIMESTAMP)) {
 			name.StripFileExtension();
-			name.DefaultFileExtension( ".jpg" );
-			LoadJPG( name.c_str(), pic, width, height, timestamp );
+			name.DefaultFileExtension(".tga");
+		#endif
+			LoadTGA( name.c_str(), pic, width, height, timestamp );            // try tga first
+			if ( ( pic && *pic == 0 ) || ( timestamp && *timestamp == FILE_NOT_FOUND_TIMESTAMP ) ) {
+				name.StripFileExtension();
+				name.DefaultFileExtension( ".jpg" );
+				LoadJPG( name.c_str(), pic, width, height, timestamp );
+			}
+		#if IMG_ENABLE_PNGS > 0
 		}
+		#endif
 	} else if ( ext == "pcx" ) {
 		LoadPCX32( name.c_str(), pic, width, height, timestamp );
 	} else if ( ext == "bmp" ) {

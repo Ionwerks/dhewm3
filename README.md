@@ -1,10 +1,14 @@
-# DEFUNKT'S DHEWM3 EDITS
+# DEFUNKT'S DHEWM3 HACKS
 
 A testbed for features destined for Doom3Quest.
 
 [![Level-of-Detail Latest](https://img.youtube.com/vi/_VqLW03Kzsc/0.jpg)](https://www.youtube.com/watch?v=_VqLW03Kzsc)
 
 [![Level-of-Detail Original](https://img.youtube.com/vi/qex6Xa_3G2c/0.jpg)](https://www.youtube.com/watch?v=qex6Xa_3G2c)
+
+### MD5_ENABLE_GIBS
+
+WIP
 
 ### MD5_ENABLE_LODS
 
@@ -33,7 +37,7 @@ b)	Including a skin file aliasing the first (decorated) LOD to some existing sha
 The _ai_showLevelOfDetail_ implementation is not pretty (passing the mesh/face count out via properties
 added to idRenderModel) but is sufficient for development/testing. Set MD5_ENABLE_LODS=1 for releases.
 
-### MD5_BINARY_DATA
+### MD5_BINARY_MESH
 
 A mechanism to read binarised mesh data from an md5data file adjacent to the md5mesh.
 
@@ -49,17 +53,31 @@ In which case vert/tri/weight data is removed from the md5mesh leaving a simplif
 It should be possible to mix conventional and binarised mesh blocks in the same md5mesh file. The
 order of the binarised blocks is significant when the binary data is read back (original order must be preserved).
 
-_MD5_BINARY_DATA_ > 0 Enable loading of a binarised MD5 model.
+_MD5_BINARY_MESH_ > 0 Enable reading of a binarised MD5 model.
 
-_MD5_BINARY_DATA_ > 1 Enable writing of a binarised MD5 model.
+_MD5_BINARY_MESH_ > 1 Enable writing of a binarised MD5 model.
 
 If the 'commandline' key/pair value starts with "binary-export" the remainder is expected to specify a DOS path to a target file for the binarised mesh data. For example;
 
 > commandline "binary-export E:\DOOM3\OUT\pak452\models\md5\chars\marine.md5data"
 
-_MD5_BINARY_DATA_ > 2 As above but will also write the simplified md5mesh file alongside the data file.
+_MD5_BINARY_MESH_ > 2 As above but will also write the simplified md5mesh file alongside the data file.
 
-_MD5_BINARY_DATA_ > 3 As above but will also write the original md5mesh with an 'md5save' extension.
+_MD5_BINARY_MESH_ > 3 As above but will also write the original md5mesh with an 'md5save' extension.
+
+### MD5_BINARY_ANIM
+
+Adds support for loading binarised md5anim files. If the load fails an attempt will then be made to parse the original text format.
+
+_MD5_BINARY_ANIM_ > 0 Load binarised MD5 animations in the BFG layout with Little Endian values only.
+
+_MD5_BINARY_ANIM_ > 1 Load binarised MD5 animations in the BFG layout with mixed Endianness (per-BFG).
+
+### IMG_ENABLE_PNGS
+
+Quick hack to make PNG the default texture format with TGA or JPG as fallbacks. There are reasonable arguments as to why this is a bad idea for releases but it suits my development needs.
+
+Dhewm3 Issue https://github.com/dhewm/dhewm3/issues/171
 
 ### RBMIKKT_TANGENT
 
