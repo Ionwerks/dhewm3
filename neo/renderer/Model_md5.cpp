@@ -67,6 +67,7 @@ idMD5Mesh::idMD5Mesh() {
 	gibStart		= 0;
 	gibUntil		= 0;
 	gibSpurt		= 0;
+	gibAngle		= idVec3(0.00f, 0.00f, -90.00f);
 	#endif
 	#if MD5_ENABLE_LODS > 0
 	lodLower		= 0.00f;
@@ -87,6 +88,36 @@ idMD5Mesh::~idMD5Mesh() {
 		deformInfo = NULL;
 	}
 }
+
+#if MD5_ENABLE_GIBS > 0
+/* ====================
+idMD5Mesh::ParseZone
+==================== */
+void idMD5Mesh::ParseZone(const char* zone, int sign) {
+
+	if (zone && isdigit(zone[0])) {
+		int step = (zone[1] == '~' && isdigit(zone[2]) ? 2 : 0);
+		gibStart = (zone[0   ] - 47) * sign; // Store 1-based index (so 0 is disabled), -ve for conceal, +ve for reveal.
+		gibUntil = (zone[step] - 47) * sign; step++;
+		gibSpurt = (zone[step] == '#' ? 3 : zone[step] == '$' ? 2 : zone[step] == '%' ? 1 : 0);
+		if (gibSpurt != 0 && gibStart == sign) { step++;
+			if (zone[step] == '-' || zone[step] == '+') {
+				gibAngle.x = (float)atoi(&zone[step++]);
+				while (isdigit(zone[step])) step++;
+			}
+			if (zone[step] == '-' || zone[step] == '+') {
+				gibAngle.y = (float)atoi(&zone[step++]);
+				while (isdigit(zone[step])) step++;
+			}
+			if (zone[step] == '-' || zone[step] == '+') {
+				gibAngle.z = (float)atoi(&zone[step++]);
+				while (isdigit(zone[step])) step++;
+			}
+		}
+	}
+
+}
+#endif
 
 /*
 ====================
@@ -140,49 +171,21 @@ void idMD5Mesh::ParseMesh(idLexer &parser, int numJoints, const idJointMat *join
 	#if MD5_ENABLE_GIBS > 0
 	idStr shaderComment;  parser.ReadRestOfLine(shaderComment);
 	int show = idStr::FindText(shaderComment.c_str(), "SHOW:");
-	if (show >= 0) {
-		const char* zone = &shaderComment.c_str()[show + 5];
-		if (zone && zone[0] >= '0' && zone[0] <= '9') {
-			if (zone[1] == '-' && zone[2] >= zone[0] && zone[2] <= '9') {
-				gibStart = +(zone[0] - 47); // Store 1-based index (so 0 is disabled), +ve for reveal.
-				gibUntil = +(zone[2] - 47);
-				gibSpurt =  (zone[3] == '#' ? 3 : zone[3] == '$' ? 2 : zone[3] == '%' ? 1 : 0);
-			}
-			else {
-				gibStart = +(zone[0] - 47); // Store 1-based index (so 0 is disabled), +ve for reveal.
-				gibUntil = +(zone[0] - 47);
-				gibSpurt =  (zone[1] == '#' ? 3 : zone[1] == '$' ? 2 : zone[1] == '%' ? 1 : 0);
-			}
-		}
-	}
+	if (show >= 0) ParseZone(&shaderComment.c_str()[show + 5], +1);
 	int hide = idStr::FindText(shaderComment.c_str(), "HIDE:");
-	if (hide >= 0) {
-		const char* zone = &shaderComment.c_str()[hide + 5];
-		if (zone && zone[0] >= '0' && zone[0] <= '9') {
-			if (zone[1] == '-' && zone[2] >= zone[0] && zone[2] <= '9') {
-				gibStart = -(zone[0] - 47); // Store 1-based index (so 0 is disabled), -ve for conceal.
-				gibUntil = -(zone[2] - 47);
-				gibSpurt =  (zone[3] == '#' ? 3 : zone[3] == '$' ? 2 : zone[3] == '%' ? 1 : 0);
-			}
-			else {
-				gibStart = -(zone[0] - 47); // Store 1-based index (so 0 is disabled), -ve for conceal.
-				gibUntil = -(zone[0] - 47);
-				gibSpurt =  (zone[1] == '#' ? 3 : zone[1] == '$' ? 2 : zone[1] == '%' ? 1 : 0);
-			}
-		}
-	}
+	if (hide >= 0) ParseZone(&shaderComment.c_str()[hide + 5], -1);
 	#endif
 
 	#if MD5_BINARY_MESH > 2 // WRITE+
 	if (text_fd) {
 		#if MD5_ENABLE_GIBS > 0
-		const char* spurts[4] = {"", "%", "$", "#"};
+		const char* spurts[4] = {"", "%", "$", "#"}; // TODO: Doesn't yet record head angle.
 		if (gibStart == 0) {
-			text_fd->Printf("mesh {\n\tshader \"%s\"\n",               shaderName.c_str()                                                                           );
-		} else if (gibStart != gibUntil) {
-			text_fd->Printf("mesh {\n\tshader \"%s\" // %s:%i%s\n",    shaderName.c_str(), gibStart > 0 ? "SHOW" : "HIDE", gibStart,           spurts[abs(gibSpurt)]);
+			text_fd->Printf("mesh {\n\tshader \"%s\"\n",               shaderName.c_str()                                                                                        );
+		} else if (gibStart == gibUntil) {
+			text_fd->Printf("mesh {\n\tshader \"%s\" // %s:%i%s\n",    shaderName.c_str(), gibStart > 0 ? "SHOW" : "HIDE", abs(gibStart) - 1,                    spurts[gibSpurt]);
 		} else {
-			text_fd->Printf("mesh {\n\tshader \"%s\" // %s:%i-%i%s\n", shaderName.c_str(), gibStart > 0 ? "SHOW" : "HIDE", gibStart, gibUntil, spurts[abs(gibSpurt)]);
+			text_fd->Printf("mesh {\n\tshader \"%s\" // %s:%i~%i%s\n", shaderName.c_str(), gibStart > 0 ? "SHOW" : "HIDE", abs(gibStart) - 1, abs(gibUntil) - 1, spurts[gibSpurt]);
 		}
 		#else
 		text_fd->Printf("mesh {\n\tshader \"%s\"\n", shaderName.c_str());
@@ -195,8 +198,8 @@ void idMD5Mesh::ParseMesh(idLexer &parser, int numJoints, const idJointMat *join
 		const char* range = &shaderName.c_str()[shaderName.Length() - 3];
 		if (range[0] >= '0' && range[0] <= 'Z' && range[1] == '_' && range[2] >= '0' && range[2] <= 'Z') {
 			float  steps = r_lodRangeIncrements.GetFloat();
-			int ndxLower = range[0] - (range[0] > 57 ? 55 : 48); // 0-9, A-Z => 0-35
-			int ndxUpper = range[2] - (range[2] > 57 ? 55 : 48); // 0-9, A-Z => 0-35
+			int ndxLower = range[0] - (range[0] > 57 ? 55 : 48); // 0-9, A-Z >>> 0-35
+			int ndxUpper = range[2] - (range[2] > 57 ? 55 : 48); // 0-9, A-Z >>> 0-35
 			lodLower = ndxLower * steps; lodLower *= lodLower; // Stored (and compared) squared.
 			lodUpper = ndxUpper * steps; lodUpper *= lodUpper;
 			shaderName.CapLength(shaderName.Length() - 8);
@@ -689,6 +692,9 @@ void idRenderModelMD5::LoadModel() {
 	gibBleed = 0;
 	gibSmoke = 0;
 	gibSpark = 0;
+	gibHeadX = 0.00f;
+	gibHeadY = 0.00f;
+	gibHeadZ = 0.00f;
 	#endif
 
 	#if MD5_ENABLE_LODS > 1 // DEBUG
@@ -817,9 +823,16 @@ void idRenderModelMD5::LoadModel() {
 			for (; gibIndex < gibUntil; gibIndex++) {
 			#endif
 				gibZones |= (1 << gibIndex);
-				if (meshes[i].gibSpurt == 1) gibBleed |= (1 << gibIndex); else
-				if (meshes[i].gibSpurt == 2) gibSmoke |= (1 << gibIndex); else
-				if (meshes[i].gibSpurt == 3) gibSpark |= (1 << gibIndex);
+				if (meshes[i].gibSpurt) {
+					if (meshes[i].gibSpurt == 1) gibBleed |= (1 << gibIndex); else
+					if (meshes[i].gibSpurt == 2) gibSmoke |= (1 << gibIndex); else
+					if (meshes[i].gibSpurt == 3) gibSpark |= (1 << gibIndex);
+					if (gibIndex == 1) {
+						gibHeadX = meshes[i].gibAngle.x;
+						gibHeadY = meshes[i].gibAngle.y;
+						gibHeadZ = meshes[i].gibAngle.z;
+					}
+				}
 			}
 		}
 		#endif

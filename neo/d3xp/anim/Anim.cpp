@@ -191,6 +191,7 @@ idMD5Anim::LoadBinary
 bool idMD5Anim::LoadBinary(const char* filename, const char* baseFolder) {
 
 	idFile* file = NULL;
+	unsigned int number;
 
 	if (baseFolder && baseFolder[0]) {
 		file = idLib::fileSystem->OpenFileRead(va("%s/%s", baseFolder, filename));
@@ -198,17 +199,19 @@ bool idMD5Anim::LoadBinary(const char* filename, const char* baseFolder) {
 		file = idLib::fileSystem->OpenFileRead(filename);
 	}
 
-	// ---------------------------------------------------------
-
-	if (file == NULL) return false;
-
-	unsigned int number;
-
-	file->ReadUnsignedInt(number); SWAP_WHOLE(number);
-	if (number != B_ANIM_MD5_MAGIC) {
-		idLib::fileSystem->CloseFile(file);
+	if (file == NULL) {
+		common->Printf("LoadBinary: fileopen failure for %s.\n", filename); // TODO Development only?
 		return false;
 	}
+
+	file->ReadUnsignedInt(number); SWAP_WHOLE(number);
+
+	if (number != B_ANIM_MD5_MAGIC) { // 42 4D 44 65
+		common->Printf("LoadBinary: magic number failure for %s %i.\n", filename, number); // TODO Development only?
+		idLib::fileSystem->CloseFile(file); return false;
+	}
+
+	Free(); name = filename;
 
 	file->ReadUnsignedInt(number); // ID_TIME_T 1/2
 	file->ReadUnsignedInt(number); // ID_TIME_T 2/2
@@ -218,8 +221,9 @@ bool idMD5Anim::LoadBinary(const char* filename, const char* baseFolder) {
 	file->ReadInt(animLength); SWAP_WHOLE(animLength);
 	file->ReadInt(numJoints);  SWAP_WHOLE(numJoints);
 	file->ReadInt(numAnimatedComponents); SWAP_WHOLE(numAnimatedComponents);
+//	common->Printf("LoadBinary: numFrames %i\nframeRate %i\nanimLength %i\nnumJoints %i\nnumAnimatedComponents %i\n", numFrames, frameRate, animLength, numJoints, numAnimatedComponents);
 
-	file->ReadUnsignedInt(number); SWAP_WHOLE(number); bounds.SetNum(number);
+	file->ReadUnsignedInt(number); SWAP_WHOLE(number); bounds.SetGranularity(1); bounds.SetNum(number);
 	for (int i = 0; i < number; i++) {
 		idBounds& b = bounds[i];
 		file->ReadFloat(b[0].x); SWAP_FLOAT(b[0].x);
@@ -230,7 +234,7 @@ bool idMD5Anim::LoadBinary(const char* filename, const char* baseFolder) {
 		file->ReadFloat(b[1].z); SWAP_FLOAT(b[1].z);
 	}
 
-	file->ReadUnsignedInt(number); SWAP_WHOLE(number); jointInfo.SetNum(number);
+	file->ReadUnsignedInt(number); SWAP_WHOLE(number); jointInfo.SetGranularity(1); jointInfo.SetNum(number);
 	for (int i = 0; i < number; i++) {
 		jointAnimInfo_t& j = jointInfo[i];
 		idStr jointName; file->ReadString(jointName);
@@ -242,10 +246,10 @@ bool idMD5Anim::LoadBinary(const char* filename, const char* baseFolder) {
 		file->ReadInt(j.parentNum); SWAP_WHOLE(j.parentNum);
 		file->ReadInt(j.animBits); SWAP_WHOLE(j.animBits);
 		file->ReadInt(j.firstComponent); SWAP_WHOLE(j.firstComponent);
-	//	common->Printf("\t\"%s\" %i %i\n", jointName.c_str(), j.parentNum, j.animBits, j.firstComponent);
+		//	common->Printf("\t\"%s\" %i %i\n", jointName.c_str(), j.parentNum, j.animBits, j.firstComponent);
 	}
 
-	file->ReadUnsignedInt(number); SWAP_WHOLE(number); baseFrame.SetNum(number);
+	file->ReadUnsignedInt(number); SWAP_WHOLE(number); baseFrame.SetGranularity(1); baseFrame.SetNum(number);
 	for (int i = 0; i < number; i++) {
 		idJointQuat& j = baseFrame[i];
 		file->ReadFloat(j.q.x); SWAP_FLOAT(j.q.x);
@@ -257,12 +261,59 @@ bool idMD5Anim::LoadBinary(const char* filename, const char* baseFolder) {
 	//	common->Printf("\t(%f %f %f) (%f %f %f)\n", j.t.x, j.t.y, j.t.z, j.q.x, j.q.y, j.q.z);
 	}
 
-	file->ReadUnsignedInt(number); SWAP_WHOLE(number); componentFrames.SetNum(number + 1); // One extra to be able to read one more float than is necessary.
+	file->ReadUnsignedInt(number); SWAP_WHOLE(number); componentFrames.SetGranularity(1); componentFrames.SetNum(number + 1); // One extra to be able to read one more float than is necessary.
 	for (int i = 0; i < componentFrames.Num(); i++) {
 		file->ReadFloat(componentFrames[i]); // No swap.
 	}
 
 	file->ReadVec3(totaldelta); // No swap.
+
+	#if 0
+	int animLengthTest = ((numFrames - 1) * 1000 + frameRate - 1) / frameRate;
+	if (animLength != animLengthTest) {
+		common->Printf("ANIMLENGTH: %i > %i\n", animLength, animLengthTest);
+		animLength = animLengthTest;
+	}
+	idVec3 totaldeltatest;
+	if (numAnimatedComponents) {
+		float* componentPtr = &componentFrames[jointInfo[0].firstComponent];
+		if (jointInfo[0].animBits & ANIM_TX) {
+			for (int i = 0; i < numFrames; i++) {
+				componentPtr[numAnimatedComponents * i] -= baseFrame[0].t.x;
+			}
+			totaldeltatest.x = componentPtr[numAnimatedComponents * (numFrames - 1)];
+			componentPtr++;
+		} else {
+			totaldeltatest.x = 0.0f;
+		}
+		if (jointInfo[0].animBits & ANIM_TY) {
+			for (int i = 0; i < numFrames; i++) {
+				componentPtr[numAnimatedComponents * i] -= baseFrame[0].t.y;
+			}
+			totaldeltatest.y = componentPtr[numAnimatedComponents * (numFrames - 1)];
+			componentPtr++;
+		} else {
+			totaldeltatest.y = 0.0f;
+		}
+		if (jointInfo[0].animBits & ANIM_TZ) {
+			for (int i = 0; i < numFrames; i++) {
+				componentPtr[numAnimatedComponents * i] -= baseFrame[0].t.z;
+			}
+			totaldeltatest.z = componentPtr[numAnimatedComponents * (numFrames - 1)];
+			//	componentPtr++;
+		} else {
+			totaldeltatest.z = 0.0f;
+		}
+	} else {
+		totaldeltatest.Zero();
+	}
+	if (totaldelta != totaldeltatest) {
+		common->Printf("TOTALDELTA: %f,%f,%f > %f,%f,%f / %f,%f,%f > 0 ~ %s\n", totaldelta.x, totaldelta.y, totaldelta.z, totaldeltatest.x, totaldeltatest.y, totaldeltatest.z, baseFrame[0].t.x, baseFrame[0].t.y, baseFrame[0].t.z, filename);
+		totaldelta = totaldeltatest;
+	}
+	#endif
+
+	baseFrame[0].t.Zero();
 
 	idLib::fileSystem->CloseFile(file);
 

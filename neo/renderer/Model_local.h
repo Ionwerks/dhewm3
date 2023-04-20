@@ -145,6 +145,9 @@ public:
 								idMD5Mesh();
 								~idMD5Mesh();
 
+	#if MD5_ENABLE_GIBS > 0
+	void						ParseZone(const char* zone, int sign);
+	#endif
 	#if   MD5_BINARY_MESH > 2 // WRITE+
 	void						WriteData(idFile* data_fd);
 	void						FetchData(idFile* data_fd);
@@ -181,6 +184,7 @@ private:
 	int							gibStart;
 	int							gibUntil;
 	int							gibSpurt;
+	idVec3						gibAngle;
 	#endif
 
 	#if MD5_ENABLE_LODS > 0

@@ -2248,23 +2248,19 @@ void idActor::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir
 	if ( damage > 0 ) {
 		#if MD5_ENABLE_GIBS > 0
 		int gibbedZone = 0;
+		int gibbedFlag = 0;
 		if (pain_threshold && (damage >= pain_threshold * MD5_GIBBED_PAIN)) {
+			renderEntity_t* gibbedBody = &renderEntity;
+			renderEntity_t* gibbedHead = head.GetEntity() ? head.GetEntity()->GetRenderEntity() : NULL;
 			#if MD5_ENABLE_GIBS > 1
-			gibbedZone = (renderEntity.hModel->gibZones & (1 << damageBonesZone[location]));
+			gibbedFlag |= (1 << damageBonesZone[location]);
 			#else
-			gibbedZone = (renderEntity.hModel->gibZones & (1 << damageZones[location]));
+			gibbedFlag |= (1 << damageZones[location]);
 			#endif
-			if (renderEntity.gibbedZones & gibbedZone) {
-				gibbedZone = 0;
-			} else if (renderEntity.hModel->gibBleed & gibbedZone) {
-				renderEntity.gibbedZones |= gibbedZone; gibbedZone |= 0x1000;
-			} else if (renderEntity.hModel->gibSmoke & gibbedZone) {
-				renderEntity.gibbedZones |= gibbedZone; gibbedZone |= 0x2000;
-			} else if (renderEntity.hModel->gibSpark & gibbedZone) {
-				renderEntity.gibbedZones |= gibbedZone; gibbedZone |= 0x3000;
-			} else {
-				renderEntity.gibbedZones |= gibbedZone;
-			}
+			if (gibbedBody) gibbedZone |= (gibbedBody->hModel->gibZones & gibbedFlag);
+			if (gibbedHead) gibbedZone |= (gibbedHead->hModel->gibZones & gibbedFlag);
+			if (gibbedBody) Sever(gibbedBody, gibbedZone);
+			if (gibbedHead) Sever(gibbedHead, gibbedZone);
 		}
 		#endif
 		health -= damage;
@@ -2387,11 +2383,31 @@ bool idActor::Pain( idEntity *inflictor, idEntity *attacker, int damage, const i
 }
 
 #if MD5_ENABLE_GIBS > 0
-/*
-=====================
+
+/* =====================
+idActor::Sever
+===================== */
+void idActor::Sever(renderEntity_t* entity, int& zone) {
+
+	if ((entity->gibbedZones & zone) == 0) { // Zone not gibbed.
+		if /*el*/ (entity->hModel->gibBleed & zone) { // Zone will bleed.
+			if (zone & MD5_GIBBED_HEAD) damageEffectAngle = idAngles(entity->hModel->gibHeadX, entity->hModel->gibHeadY, entity->hModel->gibHeadZ).ToMat3();
+			zone |= 0x1000;
+		} else if (entity->hModel->gibSmoke & zone) { // Zone will flame.
+			if (zone & MD5_GIBBED_HEAD) damageEffectAngle = idAngles(entity->hModel->gibHeadX, entity->hModel->gibHeadY, entity->hModel->gibHeadZ).ToMat3();
+			zone |= 0x2000;
+		} else if (entity->hModel->gibSpark & zone) { // Zone will spark.
+			if (zone & MD5_GIBBED_HEAD) damageEffectAngle = idAngles(entity->hModel->gibHeadX, entity->hModel->gibHeadY, entity->hModel->gibHeadZ).ToMat3();
+			zone|= 0x3000;
+		}
+		entity->gibbedZones |= zone;
+	}
+
+}
+
+/* =====================
 idActor::Bleed
-=====================
-*/
+===================== */
 void idActor::Bleed(int gibbedZone, int location) {
 
 	const char* const headSever[] = {"head_burst", "head_burst", "head_burst"}; // {"head_burst", "head_shock", "head_blaze"}
@@ -2400,28 +2416,24 @@ void idActor::Bleed(int gibbedZone, int location) {
 	const char* const limbSever[] = {"limb_burst", "limb_burst", "limb_burst"}; // {"limb_burst", "limb_shock", "limb_blaze"}
 	const char* const limbSpray[] = {"limb_bleed", "limb_bleed", "limb_bleed"}; // {"limb_bleed", "limb_spark", "limb_smoke"}
 
-	if (gibbedZone) {
-		if (gibbedZone & MD5_GIBBED_HEAD) { // HEAD
-			damageEffectAngle = idAngles(90.00f, -30.00f, 0.00f).ToMat3();
-			#if MD5_ENABLE_GIBS > 1
-			damageEffectJoint = (jointHandle_t)damageZonesBone[damageBonesZone[location]];
-			#else
-			damageEffectJoint = (jointHandle_t)damageBones[location];
-			#endif
-			damageEffectStart = gameLocal.time ? gameLocal.time : 1;
-			damageEffectCycle = +(gibbedZone & 0xF000);
-			damageEffect = static_cast<const idDeclParticle*>(declManager->FindType(DECL_PARTICLE, headSever[(+damageEffectCycle >> 12) - 1]));
-		} else if (damageEffectCycle <= 0) { // LIMB
-			damageEffectAngle = mat3_identity;
-			#if MD5_ENABLE_GIBS > 1
-			damageEffectJoint = (jointHandle_t)damageZonesBone[damageBonesZone[location]];
-			#else
-			damageEffectJoint = (jointHandle_t)damageBones[location];
-			#endif
-			damageEffectStart = gameLocal.time ? gameLocal.time : 1;
-			damageEffectCycle = -(gibbedZone & 0xF000);
-			damageEffect = static_cast<const idDeclParticle*>(declManager->FindType(DECL_PARTICLE, limbSever[(-damageEffectCycle >> 12) - 1]));
-		}
+	if (gibbedZone & MD5_GIBBED_HEAD) { // HEAD
+		#if MD5_ENABLE_GIBS > 1
+		damageEffectJoint = (jointHandle_t)damageZonesBone[damageBonesZone[location]];
+		#else
+		damageEffectJoint = (jointHandle_t)damageBones[location];
+		#endif
+		damageEffectStart = gameLocal.time ? gameLocal.time : 1;
+		damageEffectCycle = +(gibbedZone & 0xF000);
+		damageEffect = static_cast<const idDeclParticle*>(declManager->FindType(DECL_PARTICLE, headSever[(+damageEffectCycle >> 12) - 1]));
+	} else if (gibbedZone && damageEffectCycle <= 0) { // LIMB and not already bleeding from the head.
+		#if MD5_ENABLE_GIBS > 1
+		damageEffectJoint = (jointHandle_t)damageZonesBone[damageBonesZone[location]];
+		#else
+		damageEffectJoint = (jointHandle_t)damageBones[location];
+		#endif
+		damageEffectStart = gameLocal.time ? gameLocal.time : 1;
+		damageEffectCycle = -(gibbedZone & 0xF000);
+		damageEffect = static_cast<const idDeclParticle*>(declManager->FindType(DECL_PARTICLE, limbSever[(-damageEffectCycle >> 12) - 1]));
 	}
 
 	if (damageEffect && damageEffectStart && damageEffectJoint != INVALID_JOINT) {
@@ -2430,6 +2442,7 @@ void idActor::Bleed(int gibbedZone, int location) {
 		animator.GetJointTransform(damageEffectJoint, gameLocal.time, emitOrigin, emitMatrix);
 		emitOrigin = emitOrigin * renderEntity.axis + renderEntity.origin;
 		emitMatrix = emitMatrix * renderEntity.axis;
+	//	gameRenderWorld->DebugLine(colorCyan, emitOrigin, idVec3(0.00f, 12.00f, 0.00f) * emitMatrix + emitOrigin, gameLocal.msec);
 		if (damageEffectCycle < -1) emitOrigin += idVec3(0.00f, 9.00f, 0.00f) * emitMatrix; else
 		if (damageEffectCycle <  0) emitOrigin += idVec3(0.00f, 4.50f, 0.00f) * emitMatrix; else emitMatrix = damageEffectAngle * emitMatrix;
 	//	#ifdef _D3XP
@@ -2448,6 +2461,7 @@ void idActor::Bleed(int gibbedZone, int location) {
 	}
 
 }
+
 #endif
 
 /*
