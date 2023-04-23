@@ -1248,7 +1248,7 @@ void idAI::Think( void ) {
 		idRenderModel* model = this->GetRenderEntity()->hModel;
 		if (model->lodIndex == this->entityNumber) {
 			#if MD5_ENABLE_GIBS > 0
-			int   zones = model->gibZones; // JJJJ TODO
+			int   zones = model->gibZones;
 			#endif
 			int   calls = model->lodCalls;
 			int   faces = model->lodFaces;
@@ -1257,7 +1257,7 @@ void idAI::Think( void ) {
 			if (head.GetEntity()) {
 				model = head.GetEntity()->GetRenderEntity()->hModel;
 				#if MD5_ENABLE_GIBS > 0
-				zones |= model->gibZones; // JJJJ TODO
+				zones |= model->gibZones;
 				#endif
 				calls += model->lodCalls;
 				faces += model->lodFaces;
@@ -2512,7 +2512,7 @@ void idAI::Turn( void ) {
 		return;
 	}
 	#if MD5_ENABLE_GIBS > 0
-	if (renderEntity.gibbedZones & MD5_GIBBED_HEAD) {
+	if (renderEntity.gibbedZones & (MD5_GIBBED_HEAD | MD5_GIBBED_BODY)) {
 		static idVec3 old_pos = renderEntity.origin;
 		if ((old_pos - renderEntity.origin).LengthFast() > 0.50f) {
 			 old_pos = renderEntity.origin; return;

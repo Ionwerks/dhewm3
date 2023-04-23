@@ -47,9 +47,9 @@ If you have questions concerning this license or the applicable additional terms
 #define MD5_CAMERA_EXT			"md5camera"
 #define MD5_VERSION				10
 #define MD5_ENABLE_LODS			3 // 0=Disable, 1=Enable, 2=1+ai_showLevelOfDetail, 3=2+r_testUnsmoothedTangents
-#define MD5_ENABLE_GIBS			2 // 0=Disable, 1=Enable, 2=Enable+optimiseDamageGroups, 3=Enable+optimiseDamageGroups+Print
-#define MD5_GIBBED_HEAD			2 //            1=Enable, 2=Enable+optimiseDamageGroups
-#define MD5_GIBBED_PAIN			5.00f
+#define MD5_ENABLE_GIBS			1 // 0=Disable, 1=Enable, 2=Enable+logGroups
+#define MD5_GIBBED_HEAD			2
+#define MD5_GIBBED_BODY			4
 #define MD5_BINARY_MESH			4 // 0=Disable, 1=Enable, 2=1+binaryExport, 3=1+binaryExport+Text, 4=1+binaryExport+Text+Save
 #define MD5_BINARY_ANIM			1 // 0=Disable, 1=Enable, 2=Enable-bigEndian
 #define IMG_ENABLE_PNGS			1 // 0=Disable, 1=Enable
@@ -424,9 +424,9 @@ public:
 	int   gibBleed;
 	int   gibSmoke;
 	int   gibSpark;
-	float gibHeadX;
-	float gibHeadY;
-	float gibHeadZ;
+//	float gibHeadX;
+//	float gibHeadY;
+//	float gibHeadZ;
 	#endif
 
 	#if MD5_ENABLE_LODS > 1 // DEBUG

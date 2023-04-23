@@ -1164,9 +1164,6 @@ void idAI::Think( void ) {
 		if (model->lodIndex == this->entityNumber) {
 			#if MD5_ENABLE_GIBS > 0
 			int   zones = model->gibZones;
-			float headx = model->gibHeadX;
-			float heady = model->gibHeadY;
-			float headz = model->gibHeadZ;
 			#endif
 			int   calls = model->lodCalls;
 			int   faces = model->lodFaces;
@@ -1176,11 +1173,6 @@ void idAI::Think( void ) {
 				model = head.GetEntity()->GetRenderEntity()->hModel;
 				#if MD5_ENABLE_GIBS > 0
 				zones |= model->gibZones;
-				if (headx == 0.00f && heady == 0.00f && headz == 0.00f) {
-					headx = model->gibHeadX;
-					heady = model->gibHeadY;
-					headz = model->gibHeadZ;
-				}
 				#endif
 				calls += model->lodCalls;
 				faces += model->lodFaces;
@@ -1189,15 +1181,14 @@ void idAI::Think( void ) {
 				idVec3 aboveHead(0.00f, 0.00f, 10.00f);
 				if (ai_showLevelOfDetail.GetInteger() > 2) {
 					#if MD5_ENABLE_GIBS > 0
-				//	gameRenderWorld->DrawText(va("%f (%x)",         range, zones), this->GetEyePosition() + aboveHead, 0.2500f, colorWhite, gameLocal.GetLocalPlayer()->viewAngles.ToMat3());
-					gameRenderWorld->DrawText(va("%f %f %f", headx, heady, headz), this->GetEyePosition() + aboveHead, 0.2500f, colorWhite, gameLocal.GetLocalPlayer()->viewAngles.ToMat3());
+					gameRenderWorld->DrawText(va("%f (%x)", range, zones), this->GetEyePosition() + aboveHead, 0.2500f, colorWhite, gameLocal.GetLocalPlayer()->viewAngles.ToMat3());
 					#else
-					gameRenderWorld->DrawText(va("%f",              range       ), this->GetEyePosition() + aboveHead, 0.2500f, colorWhite, gameLocal.GetLocalPlayer()->viewAngles.ToMat3());
+					gameRenderWorld->DrawText(va("%f",      range       ), this->GetEyePosition() + aboveHead, 0.2500f, colorWhite, gameLocal.GetLocalPlayer()->viewAngles.ToMat3());
 					#endif
 				} else if (ai_showLevelOfDetail.GetInteger() > 1) {
-					gameRenderWorld->DrawText(va("%d / %d",         faces, level), this->GetEyePosition() + aboveHead, 0.2500f, colorWhite, gameLocal.GetLocalPlayer()->viewAngles.ToMat3());
+					gameRenderWorld->DrawText(va("%d / %d", faces, level), this->GetEyePosition() + aboveHead, 0.2500f, colorWhite, gameLocal.GetLocalPlayer()->viewAngles.ToMat3());
 				} else {
-					gameRenderWorld->DrawText(va("%d / %d",         faces, calls), this->GetEyePosition() + aboveHead, 0.2500f, colorWhite, gameLocal.GetLocalPlayer()->viewAngles.ToMat3());
+					gameRenderWorld->DrawText(va("%d / %d", faces, calls), this->GetEyePosition() + aboveHead, 0.2500f, colorWhite, gameLocal.GetLocalPlayer()->viewAngles.ToMat3());
 				}
 			}
 		}
@@ -2436,7 +2427,7 @@ void idAI::Turn( void ) {
 		return;
 	}
 	#if MD5_ENABLE_GIBS > 0
-	if (renderEntity.gibbedZones & MD5_GIBBED_HEAD) {
+	if (renderEntity.gibbedZones & (MD5_GIBBED_HEAD | MD5_GIBBED_BODY)) {
 		static idVec3 old_pos = renderEntity.origin;
 		if ((old_pos - renderEntity.origin).LengthFast() > 0.50f) {
 			 old_pos = renderEntity.origin; return;

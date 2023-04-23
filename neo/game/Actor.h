@@ -236,14 +236,13 @@ protected:
 	idMat3					damageEffectAngle;
 	#endif
 
-	#if MD5_ENABLE_GIBS > 1
+	#if MD5_ENABLE_GIBS > 0
 	idList<int>				damageBonesZone;
 	idList<int>				damageZonesBone;
+	idList<idAngles>		damageZonesRoll;
 	idList<float>			damageZonesRate;
 	idStrList				damageZonesName;
 	#else
-	idList<int>				damageZones;
-	idList<int>				damageBones;
 	idStrList				damageGroups;		// body damage groups
 	idList<float>			damageScales;		// damage scale per damage gruop
 	#endif

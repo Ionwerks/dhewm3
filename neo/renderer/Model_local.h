@@ -146,7 +146,8 @@ public:
 								~idMD5Mesh();
 
 	#if MD5_ENABLE_GIBS > 0
-	void						ParseZone(const char* zone, int sign);
+	int							ZoneParse(const char* zone, int& next);
+	void						ParseZone(const char* zone, bool show);
 	#endif
 	#if   MD5_BINARY_MESH > 2 // WRITE+
 	void						WriteData(idFile* data_fd);
@@ -181,10 +182,9 @@ private:
 	int							surfaceNum;			// number of the static surface created for this mesh
 
 	#if MD5_ENABLE_GIBS > 0
-	int							gibStart;
-	int							gibUntil;
+	int							gibZones;
+	int							gibShown;
 	int							gibSpurt;
-	idVec3						gibAngle;
 	#endif
 
 	#if MD5_ENABLE_LODS > 0

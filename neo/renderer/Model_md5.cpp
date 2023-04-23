@@ -64,10 +64,9 @@ idMD5Mesh::idMD5Mesh() {
 	deformInfo		= NULL;
 	surfaceNum		= 0;
 	#if MD5_ENABLE_GIBS > 0
-	gibStart		= 0;
-	gibUntil		= 0;
+	gibZones		= 0;
+	gibShown		= 0;
 	gibSpurt		= 0;
-	gibAngle		= idVec3(0.00f, 0.00f, -90.00f);
 	#endif
 	#if MD5_ENABLE_LODS > 0
 	lodLower		= 0.00f;
@@ -90,30 +89,46 @@ idMD5Mesh::~idMD5Mesh() {
 }
 
 #if MD5_ENABLE_GIBS > 0
+
 /* ====================
 idMD5Mesh::ParseZone
 ==================== */
-void idMD5Mesh::ParseZone(const char* zone, int sign) {
+int idMD5Mesh::ZoneParse(const char* zone, int& next) {
 
-	if (zone && isdigit(zone[0])) {
-		int step = (zone[1] == '~' && isdigit(zone[2]) ? 2 : 0);
-		gibStart = (zone[0   ] - 47) * sign; // Store 1-based index (so 0 is disabled), -ve for conceal, +ve for reveal.
-		gibUntil = (zone[step] - 47) * sign; step++;
+	int bits = 0;
+
+	if (zone[0] == '0' && zone[1] == 'x') { char* after;
+		bits  = strtol(&zone[2], &after, 16);
+		next += 4; // Assumes a 2 digit hex number.
+	} else if (isdigit(zone[0])) {
+		int index = (zone[1] != '~' || zone[2] <= zone[0] || !isdigit(zone[2]) ? 0 : 2);
+		int start = (zone[0]     - 47);
+		int until = (zone[index] - 47);
+		for (; start <= until; start++) bits |= (1 << start);
+		next += 1 + index;
+	}
+
+	return bits;
+
+}
+
+/* ====================
+idMD5Mesh::ParseZone
+==================== */
+void idMD5Mesh::ParseZone(const char* zone, bool show) {
+
+	int step = 0;
+
+	if (zone) {
+		gibZones = ZoneParse(&zone[step], step); gibShown = (int)show;
+	}
+
+	if (step && zone[step] == ';') { step++;
+		gibShown = ZoneParse(&zone[step], step) * (int)show;
+	}
+
+	if (step) {
 		gibSpurt = (zone[step] == '#' ? 3 : zone[step] == '$' ? 2 : zone[step] == '%' ? 1 : 0);
-		if (gibSpurt != 0 && gibStart == sign) { step++;
-			if (zone[step] == '-' || zone[step] == '+') {
-				gibAngle.x = (float)atoi(&zone[step++]);
-				while (isdigit(zone[step])) step++;
-			}
-			if (zone[step] == '-' || zone[step] == '+') {
-				gibAngle.y = (float)atoi(&zone[step++]);
-				while (isdigit(zone[step])) step++;
-			}
-			if (zone[step] == '-' || zone[step] == '+') {
-				gibAngle.z = (float)atoi(&zone[step++]);
-				while (isdigit(zone[step])) step++;
-			}
-		}
 	}
 
 }
@@ -171,21 +186,23 @@ void idMD5Mesh::ParseMesh(idLexer &parser, int numJoints, const idJointMat *join
 	#if MD5_ENABLE_GIBS > 0
 	idStr shaderComment;  parser.ReadRestOfLine(shaderComment);
 	int show = idStr::FindText(shaderComment.c_str(), "SHOW:");
-	if (show >= 0) ParseZone(&shaderComment.c_str()[show + 5], +1);
+	if (show >= 0) ParseZone(&shaderComment.c_str()[show + 5], true );
 	int hide = idStr::FindText(shaderComment.c_str(), "HIDE:");
-	if (hide >= 0) ParseZone(&shaderComment.c_str()[hide + 5], -1);
+	if (hide >= 0) ParseZone(&shaderComment.c_str()[hide + 5], false);
 	#endif
 
 	#if MD5_BINARY_MESH > 2 // WRITE+
 	if (text_fd) {
 		#if MD5_ENABLE_GIBS > 0
-		const char* spurts[4] = {"", "%", "$", "#"}; // TODO: Doesn't yet record head angle.
-		if (gibStart == 0) {
-			text_fd->Printf("mesh {\n\tshader \"%s\"\n",               shaderName.c_str()                                                                                        );
-		} else if (gibStart == gibUntil) {
-			text_fd->Printf("mesh {\n\tshader \"%s\" // %s:%i%s\n",    shaderName.c_str(), gibStart > 0 ? "SHOW" : "HIDE", abs(gibStart) - 1,                    spurts[gibSpurt]);
+		const char* spurts[4] = {"", "%", "$", "#"};
+		if /*el*/ (gibZones == 0) {
+			text_fd->Printf("mesh {\n\tshader \"%s\"\n",                         shaderName.c_str()                                      );
+		} else if (gibShown == 0) {
+			text_fd->Printf("mesh {\n\tshader \"%s\" // HIDE:0x%02X%s\n",        shaderName.c_str(), gibZones,           spurts[gibSpurt]);
+		} else if (gibShown == 1) {
+			text_fd->Printf("mesh {\n\tshader \"%s\" // SHOW:0x%02X%s\n",        shaderName.c_str(), gibZones,           spurts[gibSpurt]);
 		} else {
-			text_fd->Printf("mesh {\n\tshader \"%s\" // %s:%i~%i%s\n", shaderName.c_str(), gibStart > 0 ? "SHOW" : "HIDE", abs(gibStart) - 1, abs(gibUntil) - 1, spurts[gibSpurt]);
+			text_fd->Printf("mesh {\n\tshader \"%s\" // SHOW:0x%02X;0x%02X%s\n", shaderName.c_str(), gibZones, gibShown, spurts[gibSpurt]);
 		}
 		#else
 		text_fd->Printf("mesh {\n\tshader \"%s\"\n", shaderName.c_str());
@@ -692,9 +709,9 @@ void idRenderModelMD5::LoadModel() {
 	gibBleed = 0;
 	gibSmoke = 0;
 	gibSpark = 0;
-	gibHeadX = 0.00f;
-	gibHeadY = 0.00f;
-	gibHeadZ = 0.00f;
+//	gibHeadX = 0.00f;
+//	gibHeadY = 0.00f;
+//	gibHeadZ = 0.00f;
 	#endif
 
 	#if MD5_ENABLE_LODS > 1 // DEBUG
@@ -812,27 +829,12 @@ void idRenderModelMD5::LoadModel() {
 		             meshes[i].ParseMesh(parser, defaultPose.Num(), poseMat3                  );
 		#endif
 		#if MD5_ENABLE_GIBS > 0
-		if (meshes[i].gibStart != 0) {
-			#if MD5_ENABLE_GIBS > 1
-			int gibIndex = (meshes[i].gibStart < 0 ? -meshes[i].gibStart : +meshes[i].gibStart);
-			int gibUntil = (meshes[i].gibUntil < 0 ? -meshes[i].gibUntil : +meshes[i].gibUntil);
-			for (; gibIndex <= gibUntil; gibIndex++) {
-			#else
-			int gibIndex = (meshes[i].gibStart < 0 ? -meshes[i].gibStart : +meshes[i].gibStart) - 1;
-			int gibUntil = (meshes[i].gibUntil < 0 ? -meshes[i].gibUntil : +meshes[i].gibUntil);
-			for (; gibIndex < gibUntil; gibIndex++) {
-			#endif
-				gibZones |= (1 << gibIndex);
-				if (meshes[i].gibSpurt) {
-					if (meshes[i].gibSpurt == 1) gibBleed |= (1 << gibIndex); else
-					if (meshes[i].gibSpurt == 2) gibSmoke |= (1 << gibIndex); else
-					if (meshes[i].gibSpurt == 3) gibSpark |= (1 << gibIndex);
-					if (gibIndex == 1) {
-						gibHeadX = meshes[i].gibAngle.x;
-						gibHeadY = meshes[i].gibAngle.y;
-						gibHeadZ = meshes[i].gibAngle.z;
-					}
-				}
+		if (meshes[i].gibZones) {
+			gibZones |= meshes[i].gibZones;
+			if (meshes[i].gibSpurt) {
+				if (meshes[i].gibSpurt == 3) gibSpark |= meshes[i].gibZones; else
+				if (meshes[i].gibSpurt == 2) gibSmoke |= meshes[i].gibZones; else
+				if (meshes[i].gibSpurt == 1) gibBleed |= meshes[i].gibZones;
 			}
 		}
 		#endif
@@ -1091,29 +1093,15 @@ idRenderModel *idRenderModelMD5::InstantiateDynamicModel( const struct renderEnt
 		}
 
 		#if MD5_ENABLE_GIBS > 0
-		if (mesh->gibStart) {
-			#if MD5_ENABLE_GIBS > 1
-			int gibIndex = (mesh->gibStart < 0 ? -mesh->gibStart : +mesh->gibStart);
-			int gibUntil = (mesh->gibUntil < 0 ? -mesh->gibUntil : +mesh->gibUntil);
-			for (; gibIndex <= gibUntil; gibIndex++) {
-				if (ent->gibbedZones & (1 << gibIndex)) break;
-			}
-			if (gibIndex > gibUntil) {
-			#else
-			int gibIndex = (mesh->gibStart < 0 ? -mesh->gibStart : +mesh->gibStart) - 1;
-			int gibUntil = (mesh->gibUntil < 0 ? -mesh->gibUntil : +mesh->gibUntil);
-			for (; gibIndex < gibUntil; gibIndex++) {
-				if (ent->gibbedZones & (1 << gibIndex)) break;
-			}
-			if (gibIndex == gibUntil) {
-			#endif
-				if (mesh->gibStart > 0) {
+		if (mesh->gibZones) {
+			if (mesh->gibZones & ent->gibbedZones) {
+				if (mesh->gibShown == 0 || (mesh->gibShown & ent->gibbedZones) != 0) {
 					staticModel->DeleteSurfaceWithId(i);
 					mesh->surfaceNum = -1;
 					continue;
 				}
 			} else {
-				if (mesh->gibStart < 0) {
+				if (mesh->gibShown != 0) {
 					staticModel->DeleteSurfaceWithId(i);
 					mesh->surfaceNum = -1;
 					continue;
