@@ -453,6 +453,7 @@ idActor::idActor( void ) {
 	damageEffect = NULL;
 	damageEffectCycle = 0;
 	damageEffectStart = 0;
+	damageEffectDeath = false;
 	damageEffectJoint = INVALID_JOINT;
 	damageEffectAngle = mat3_identity;
 	#endif
@@ -558,6 +559,7 @@ void idActor::Spawn( void ) {
 	damageEffect = NULL;
 	damageEffectCycle = 0;
 	damageEffectStart = 0;
+	damageEffectDeath = false;
 	damageEffectJoint = INVALID_JOINT;
 	damageEffectAngle = mat3_identity;
 	#endif
@@ -851,6 +853,7 @@ void idActor::Save( idSaveGame *savefile ) const {
 	savefile->WriteParticle(damageEffect);
 	savefile->WriteInt(damageEffectCycle);
 	savefile->WriteInt(damageEffectStart);
+	savefile->WriteBool(damageEffectDeath);
 	savefile->WriteJoint(damageEffectJoint);
 	savefile->WriteMat3(damageEffectAngle);
 	#endif
@@ -989,6 +992,7 @@ void idActor::Restore( idRestoreGame *savefile ) {
 	savefile->ReadParticle(damageEffect);
 	savefile->ReadInt(damageEffectCycle);
 	savefile->ReadInt(damageEffectStart);
+	savefile->ReadBool(damageEffectDeath);
 	savefile->ReadJoint(damageEffectJoint);
 	savefile->ReadMat3(damageEffectAngle);
 	#endif
@@ -1733,6 +1737,13 @@ bool idActor::StartRagdoll( void ) {
 	slomoStart = MS2SEC( gameLocal.time ) + spawnArgs.GetFloat( "ragdoll_slomoStart", "-1.6" );
 	slomoEnd = MS2SEC( gameLocal.time ) + spawnArgs.GetFloat( "ragdoll_slomoEnd", "0.8" );
 
+	#if MD5_ENABLE_GIBS > 0 // KILL See what this looks like!
+	if (damageEffectDeath) {
+		slomoStart = MS2SEC(gameLocal.time) - 3.20f;
+		slomoEnd = MS2SEC(gameLocal.time) + 1.60f;
+	}
+	#endif
+
 	// do the first part of the death in slow motion
 	af.GetPhysics()->SetTimeScaleRamp( slomoStart, slomoEnd );
 
@@ -2308,7 +2319,11 @@ void idActor::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir
 		#if MD5_ENABLE_GIBS > 0
 		int gibbedZone = 0;
 		int gibbedFlag = 0;
+		#if MD5_ENABLE_GIBS > 1 // DEBUG
+		if (location != INVALID_JOINT && pain_threshold && damage >= pain_threshold) {
+		#else
 		if (location != INVALID_JOINT && pain_threshold && damage >= pain_threshold && damage >= health) {
+		#endif
 			renderEntity_t* gibbedBody = &renderEntity;
 			renderEntity_t* gibbedHead = head.GetEntity() ? head.GetEntity()->GetRenderEntity() : NULL;
 			gibbedFlag |= (1 << damageBonesZone[location]);
@@ -2316,7 +2331,9 @@ void idActor::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir
 			if (gibbedHead) gibbedZone |= (gibbedHead->hModel->gibZones & gibbedFlag);
 			if (gibbedBody) Sever(gibbedBody, gibbedZone);
 			if (gibbedHead) Sever(gibbedHead, gibbedZone);
+		//	#if MD5_ENABLE_GIBS < 2
 			if (gibbedZone) health += damage;
+		//	#endif
 		}
 		#endif
 		health -= damage;
@@ -2508,8 +2525,10 @@ void idActor::Bleed(int gibbedZone, int location) {
 		emitMatrix = emitMatrix * renderEntity.axis;
 		emitMatrix = damageEffectAngle * emitMatrix;
 		if (damageEffectCycle < -1) emitOrigin += idVec3(0.00f, 9.00f, 0.00f) * emitMatrix; else
-		if (damageEffectCycle < 0) emitOrigin += idVec3(0.00f, 4.50f, 0.00f) * emitMatrix;
-	//	gameRenderWorld->DebugLine(colorCyan, emitOrigin, idVec3(0.00f, 12.00f, 0.00f) * emitMatrix + emitOrigin, gameLocal.msec);
+		if (damageEffectCycle <  0) emitOrigin += idVec3(0.00f, 4.50f, 0.00f) * emitMatrix;
+		#if MD5_ENABLE_GIBS > 1 // DEBUG
+		gameRenderWorld->DebugLine(colorCyan, emitOrigin, idVec3(0.00f, 12.00f, 0.00f) * emitMatrix + emitOrigin, gameLocal.msec);
+		#endif
 		#ifdef _D3XP
 		SetTimeState ts(timeGroup);
 		#endif
@@ -2522,8 +2541,10 @@ void idActor::Bleed(int gibbedZone, int location) {
 				damageEffect = static_cast<const idDeclParticle*>(declManager->FindType(DECL_PARTICLE, headSpray[(+damageEffectCycle >> 12) - 1]));
 				damageEffectCycle = +1;
 			} else if (damageEffectCycle == 0) {
-				Damage(this, this, vec3_origin, "damage_suicide", 1.00f, INVALID_JOINT); // TODO: Kill!
-				damageEffectStart =  0;
+				damageEffectStart =  0; damageEffectDeath = true;
+			//	#if MD5_ENABLE_GIBS < 2
+				Damage(this, this, vec3_origin, "damage_suicide", 1.00f, INVALID_JOINT); // TODO: Kill! See also; ragdoll_slomoStart, ragdoll_slomoeND
+			//	#endif
 			}
 		}
 	}

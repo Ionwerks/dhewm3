@@ -2619,7 +2619,6 @@ bool idAI::TurnToward( const idVec3 &pos ) {
 	if ( lengthSqr > Square( 2.0f ) || ( lengthSqr > Square( 0.1f ) && enemy.GetEntity() == NULL ) ) {
 		ideal_yaw = idMath::AngleNormalize180( local_dir.ToYaw() );
 	}
-
 	bool result = FacingIdeal();
 	return result;
 }

@@ -1065,6 +1065,11 @@ void idAI::Think( void ) {
 
 		current_yaw += deltaViewAngles.yaw;
 		ideal_yaw = idMath::AngleNormalize180( ideal_yaw + deltaViewAngles.yaw );
+		#if MD5_ENABLE_GIBS > 0 && 0 // TURN
+		if (renderEntity.gibbedZones & (MD5_GIBBED_HEAD | MD5_GIBBED_BODY)) {
+			ideal_yaw = idMath::AngleNormalize180(ideal_yaw + ((gameLocal.realClientTime / 1000) % 180) - 90);
+		}
+		#endif
 		deltaViewAngles.Zero();
 		viewAxis = idAngles( 0, current_yaw, 0 ).ToMat3();
 
@@ -2426,7 +2431,7 @@ void idAI::Turn( void ) {
 	if ( animflags.ai_no_turn ) {
 		return;
 	}
-	#if MD5_ENABLE_GIBS > 0
+	#if MD5_ENABLE_GIBS > 0 // TURN
 	if (renderEntity.gibbedZones & (MD5_GIBBED_HEAD | MD5_GIBBED_BODY)) {
 		static idVec3 old_pos = renderEntity.origin;
 		if ((old_pos - renderEntity.origin).LengthFast() > 0.50f) {
@@ -2513,6 +2518,11 @@ idAI::TurnToward
 */
 bool idAI::TurnToward( float yaw ) {
 	ideal_yaw = idMath::AngleNormalize180( yaw );
+	#if MD5_ENABLE_GIBS > 0 && 0 // TURN
+	if (renderEntity.gibbedZones & (MD5_GIBBED_HEAD | MD5_GIBBED_BODY)) {
+		ideal_yaw = idMath::AngleNormalize180(ideal_yaw + ((gameLocal.realClientTime / 1000) % 180) - 90);
+	}
+	#endif
 	bool result = FacingIdeal();
 	return result;
 }
@@ -2533,6 +2543,11 @@ bool idAI::TurnToward( const idVec3 &pos ) {
 	lengthSqr = local_dir.LengthSqr();
 	if ( lengthSqr > Square( 2.0f ) || ( lengthSqr > Square( 0.1f ) && enemy.GetEntity() == NULL ) ) {
 		ideal_yaw = idMath::AngleNormalize180( local_dir.ToYaw() );
+		#if MD5_ENABLE_GIBS > 0 && 0 // TURN
+		if (renderEntity.gibbedZones & (MD5_GIBBED_HEAD | MD5_GIBBED_BODY)) {
+			ideal_yaw = idMath::AngleNormalize180(ideal_yaw + ((gameLocal.realClientTime / 1000) % 180) - 90);
+		}
+		#endif
 	}
 
 	bool result = FacingIdeal();
@@ -4222,6 +4237,12 @@ idProjectile *idAI::LaunchProjectile( const char *jointname, idEntity *target, b
 	}
 
 	axis = ang.ToMat3();
+
+	#if MD5_ENABLE_GIBS > 0 // FIRE
+	if (renderEntity.gibbedZones & (MD5_GIBBED_HEAD | MD5_GIBBED_BODY)) {
+		axis = viewAxis;
+	}
+	#endif
 
 	float spreadRad = DEG2RAD( projectile_spread );
 	for( i = 0; i < num_projectiles; i++ ) {

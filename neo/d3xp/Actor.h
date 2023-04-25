@@ -240,6 +240,7 @@ protected:
 	const idDeclParticle*	damageEffect;
 	int						damageEffectCycle;
 	int						damageEffectStart;
+	bool					damageEffectDeath;
 	jointHandle_t			damageEffectJoint;
 	idMat3					damageEffectAngle;
 	#endif

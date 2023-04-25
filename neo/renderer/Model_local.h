@@ -147,7 +147,7 @@ public:
 
 	#if MD5_ENABLE_GIBS > 0
 	int							ZoneParse(const char* zone, int& next);
-	void						ParseZone(const char* zone, bool show);
+	void						ParseZone(const char* zone, int  show);
 	#endif
 	#if   MD5_BINARY_MESH > 2 // WRITE+
 	void						WriteData(idFile* data_fd);

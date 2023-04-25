@@ -91,21 +91,34 @@ idMD5Mesh::~idMD5Mesh() {
 #if MD5_ENABLE_GIBS > 0
 
 /* ====================
-idMD5Mesh::ParseZone
+idMD5Mesh::ZoneParse
 ==================== */
-int idMD5Mesh::ZoneParse(const char* zone, int& next) {
+int idMD5Mesh::ZoneParse(const char* zone, int& step) {
 
 	int bits = 0;
 
-	if (zone[0] == '0' && zone[1] == 'x') { char* after;
-		bits  = strtol(&zone[2], &after, 16);
-		next += 4; // Assumes a 2 digit hex number.
-	} else if (isdigit(zone[0])) {
-		int index = (zone[1] != '~' || zone[2] <= zone[0] || !isdigit(zone[2]) ? 0 : 2);
-		int start = (zone[0]     - 47);
-		int until = (zone[index] - 47);
-		for (; start <= until; start++) bits |= (1 << start);
-		next += 1 + index;
+	if (isdigit(zone[0])) {
+		if (zone[0] == '0' && zone[1] == 'x') {
+			char* next = NULL;
+			bits = strtol(&zone[2], &next, 16) << 1;
+			step += next - zone;
+		} else if (strchr(zone, ',')) {
+			char* copy = strdup(zone);
+			char* part = NULL;
+			char* rest = NULL;
+			char* next = NULL;
+			for (part = strtok_s(copy, ",", &rest); part && isdigit(part[0]); part = strtok_s(NULL, ",", &rest)) {
+				bits |= 1 << (1 + strtol(part, &next, 10));
+			}
+			step += next - copy;
+			free(copy);
+		} else {
+			int index = (zone[1] != '-' || zone[2] <= zone[0] || !isdigit(zone[2]) ? 0 : 2);
+			int start = (zone[0] - 47);
+			int until = (zone[index] - 47);
+			for (; start <= until; start++) bits |= (1 << start);
+			step += 1 + index;
+		}
 	}
 
 	return bits;
@@ -115,16 +128,20 @@ int idMD5Mesh::ZoneParse(const char* zone, int& next) {
 /* ====================
 idMD5Mesh::ParseZone
 ==================== */
-void idMD5Mesh::ParseZone(const char* zone, bool show) {
+void idMD5Mesh::ParseZone(const char* zone, int show) {
 
 	int step = 0;
 
 	if (zone) {
-		gibZones = ZoneParse(&zone[step], step); gibShown = (int)show;
+		gibZones = ZoneParse(&zone[step], step); gibShown = (int)(show != 0);
 	}
 
-	if (step && zone[step] == ';') { step++;
-		gibShown = ZoneParse(&zone[step], step) * (int)show;
+	/* if (step && zone[step] == ';') { step++;
+		gibShown = ZoneParse(&zone[step], step) * (int)(show != 0);
+	} */
+
+	if (step && show > 1 && gibZones && ((gibZones - 1) & gibZones)) { // Must have more than one zone flag (or shown will end up zeroed).
+		gibShown = gibZones; gibZones = (gibZones & MD5_GIBBED_HEAD ? MD5_GIBBED_HEAD : 1 << (int)log2f(gibZones)); gibShown &= ~gibZones;
 	}
 
 	if (step) {
@@ -132,6 +149,7 @@ void idMD5Mesh::ParseZone(const char* zone, bool show) {
 	}
 
 }
+
 #endif
 
 /*
@@ -185,10 +203,12 @@ void idMD5Mesh::ParseMesh(idLexer &parser, int numJoints, const idJointMat *join
 
 	#if MD5_ENABLE_GIBS > 0
 	idStr shaderComment;  parser.ReadRestOfLine(shaderComment);
-	int show = idStr::FindText(shaderComment.c_str(), "SHOW:");
-	if (show >= 0) ParseZone(&shaderComment.c_str()[show + 5], true );
 	int hide = idStr::FindText(shaderComment.c_str(), "HIDE:");
-	if (hide >= 0) ParseZone(&shaderComment.c_str()[hide + 5], false);
+	if (hide >= 0) ParseZone(&shaderComment.c_str()[hide + 5], 0);
+	int show = idStr::FindText(shaderComment.c_str(), "SHOW:");
+	if (show >= 0) ParseZone(&shaderComment.c_str()[show + 5], 1);
+	int stub = idStr::FindText(shaderComment.c_str(), "STUB:");
+	if (stub >= 0) ParseZone(&shaderComment.c_str()[stub + 5], 2);
 	#endif
 
 	#if MD5_BINARY_MESH > 2 // WRITE+
@@ -196,13 +216,13 @@ void idMD5Mesh::ParseMesh(idLexer &parser, int numJoints, const idJointMat *join
 		#if MD5_ENABLE_GIBS > 0
 		const char* spurts[4] = {"", "%", "$", "#"};
 		if /*el*/ (gibZones == 0) {
-			text_fd->Printf("mesh {\n\tshader \"%s\"\n",                         shaderName.c_str()                                      );
+			text_fd->Printf("mesh {\n\tshader \"%s\"\n",                shaderName.c_str()                                              );
 		} else if (gibShown == 0) {
-			text_fd->Printf("mesh {\n\tshader \"%s\" // HIDE:0x%02X%s\n",        shaderName.c_str(), gibZones,           spurts[gibSpurt]);
+			text_fd->Printf("mesh {\n\tshader \"%s\" // HIDE:0x%X%s\n", shaderName.c_str(), (gibZones           ) >> 1, spurts[gibSpurt]);
 		} else if (gibShown == 1) {
-			text_fd->Printf("mesh {\n\tshader \"%s\" // SHOW:0x%02X%s\n",        shaderName.c_str(), gibZones,           spurts[gibSpurt]);
+			text_fd->Printf("mesh {\n\tshader \"%s\" // SHOW:0x%X%s\n", shaderName.c_str(), (gibZones           ) >> 1, spurts[gibSpurt]);
 		} else {
-			text_fd->Printf("mesh {\n\tshader \"%s\" // SHOW:0x%02X;0x%02X%s\n", shaderName.c_str(), gibZones, gibShown, spurts[gibSpurt]);
+			text_fd->Printf("mesh {\n\tshader \"%s\" // STUB:0x%X%s\n", shaderName.c_str(), (gibZones | gibShown) >> 1, spurts[gibSpurt]);
 		}
 		#else
 		text_fd->Printf("mesh {\n\tshader \"%s\"\n", shaderName.c_str());
@@ -709,9 +729,6 @@ void idRenderModelMD5::LoadModel() {
 	gibBleed = 0;
 	gibSmoke = 0;
 	gibSpark = 0;
-//	gibHeadX = 0.00f;
-//	gibHeadY = 0.00f;
-//	gibHeadZ = 0.00f;
 	#endif
 
 	#if MD5_ENABLE_LODS > 1 // DEBUG
@@ -1086,27 +1103,31 @@ idRenderModel *idRenderModelMD5::InstantiateDynamicModel( const struct renderEnt
 
 		shader = R_RemapShaderBySkin( shader, ent->customSkin, ent->customShader );
 
-		if ( !shader || ( !shader->IsDrawn() && !shader->SurfaceCastsShadow() ) ) {
-			staticModel->DeleteSurfaceWithId( i );
-			mesh->surfaceNum = -1;
-			continue;
-		}
-
 		#if MD5_ENABLE_GIBS > 0
-		if (mesh->gibZones) {
-			if (mesh->gibZones & ent->gibbedZones) {
-				if (mesh->gibShown == 0 || (mesh->gibShown & ent->gibbedZones) != 0) {
-					staticModel->DeleteSurfaceWithId(i);
-					mesh->surfaceNum = -1;
-					continue;
+		if (shader == NULL) {
+			staticModel->DeleteSurfaceWithId(i); mesh->surfaceNum = -1; continue;
+		} else if (mesh->gibZones) {
+			if (mesh->gibZones & ent->gibbedZones) { // A qualifying zone is gibbed.
+				if (mesh->gibShown == 0 || (mesh->gibShown & ent->gibbedZones) != 0) { // Always hide or ancestor gibbed.
+					staticModel->DeleteSurfaceWithId(i); mesh->surfaceNum = -1; continue;
+			//	} else if (shader->IsDrawn() != true && shader->SurfaceCastsShadow() != true) { // Suppress nodraw (to use the gib skeleton).
+			//		staticModel->DeleteSurfaceWithId(i); mesh->surfaceNum = -1; continue;
 				}
-			} else {
+			} else { // No qualifying zones are gibbed.
 				if (mesh->gibShown != 0) {
-					staticModel->DeleteSurfaceWithId(i);
-					mesh->surfaceNum = -1;
-					continue;
+					staticModel->DeleteSurfaceWithId(i); mesh->surfaceNum = -1; continue;
+				} else if (shader->IsDrawn() != true && shader->SurfaceCastsShadow() != true) {
+					staticModel->DeleteSurfaceWithId(i); mesh->surfaceNum = -1; continue;
 				}
 			}
+		} else if (shader->IsDrawn() != true && shader->SurfaceCastsShadow() != true) {
+			staticModel->DeleteSurfaceWithId(i); mesh->surfaceNum = -1; continue;
+		}
+		#else
+		if (!shader || (!shader->IsDrawn() && !shader->SurfaceCastsShadow())) {
+			staticModel->DeleteSurfaceWithId(i);
+			mesh->surfaceNum = -1;
+			continue;
 		}
 		#endif
 
