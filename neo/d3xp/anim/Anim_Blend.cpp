@@ -727,7 +727,11 @@ const char *idAnim::AddFrameCommand( const idDeclModelDef *modelDef, int framenu
 idAnim::CallFrameCommands
 =====================
 */
-void idAnim::CallFrameCommands( idEntity *ent, int from, int to ) const {
+#if MD5_ENABLE_GIBS > 0 // ANIMS
+void idAnim::CallFrameCommands(idEntity* ent, int from, int to, int uses) const {
+#else
+void idAnim::CallFrameCommands(idEntity* ent, int from, int to) const {
+#endif
 	int index;
 	int end;
 	int frame;
@@ -902,7 +906,15 @@ void idAnim::CallFrameCommands( idEntity *ent, int from, int to ) const {
 					break;
 				}
 				case FC_MELEE: {
-					ent->ProcessEvent( &AI_AttackMelee, command.string->c_str() );
+					#if MD5_ENABLE_GIBS > 0 // ANIMS
+					if (ent->GetRenderEntity()->gibbedZones && (ent->GetRenderEntity()->gibbedZones & uses)) {
+						ent->ProcessEvent(&AI_AttackMelee, "");
+					} else {
+						ent->ProcessEvent(&AI_AttackMelee, command.string->c_str());
+					}
+					#else
+					ent->ProcessEvent(&AI_AttackMelee, command.string->c_str());
+					#endif
 					break;
 				}
 				case FC_DIRECTDAMAGE: {
@@ -1802,12 +1814,19 @@ void idAnimBlend::CallFrameCommands( idEntity *ent, int fromtime, int totime ) c
 	md5anim->ConvertTimeToFrame( fromFrameTime, cycle, frame1 );
 	md5anim->ConvertTimeToFrame( toFrameTime, cycle, frame2 );
 
-	if ( fromFrameTime <= 0 ) {
-		// make sure first frame is called
-		anim->CallFrameCommands( ent, -1, frame2.frame1 );
+	#if MD5_ENABLE_GIBS > 0 // ANIMS
+	if (fromFrameTime <= 0) { // make sure first frame is called
+		anim->CallFrameCommands(ent, -1, frame2.frame1, md5anim->gibbedLimit);
 	} else {
-		anim->CallFrameCommands( ent, frame1.frame1, frame2.frame1 );
+		anim->CallFrameCommands(ent, frame1.frame1, frame2.frame1, md5anim->gibbedLimit);
 	}
+	#else
+	if (fromFrameTime <= 0) { // make sure first frame is called
+		anim->CallFrameCommands(ent, -1, frame2.frame1);
+	} else {
+		anim->CallFrameCommands(ent, frame1.frame1, frame2.frame1);
+	}
+	#endif
 }
 
 /*

@@ -1034,7 +1034,7 @@ can never create silhouette plains, and can be omited
 int	c_coplanarSilEdges;
 int	c_totalSilEdges;
 
-#if MD5_ENABLE_GIBS > 0 // ZZZZ
+#if MD5_ENABLE_GIBS > 0 // HINTS
 void R_IdentifySilEdges(srfTriangles_t* tri, bool omitCoplanarEdges, int hintFaces = 0) {
 #else
 void R_IdentifySilEdges(srfTriangles_t *tri, bool omitCoplanarEdges) {
@@ -1047,7 +1047,7 @@ void R_IdentifySilEdges(srfTriangles_t *tri, bool omitCoplanarEdges) {
 
 	numTris = tri->numIndexes / 3;
 
-	#if MD5_ENABLE_GIBS > 0 // ZZZZ
+	#if MD5_ENABLE_GIBS > 0 // HINTS
 	numTris -= hintFaces;
 	#endif
 
@@ -2241,7 +2241,7 @@ DEFORMED SURFACES
 R_BuildDeformInfo
 ===================
 */
-#if MD5_ENABLE_GIBS > 0 // ZZZZ
+#if MD5_ENABLE_GIBS > 0 // HINTS
 deformInfo_t* R_BuildDeformInfo(int numVerts, const idDrawVert* verts, int numIndexes, const int* indexes, bool useUnsmoothedTangents, int hintFaces) {
 #else
 deformInfo_t *R_BuildDeformInfo(int numVerts, const idDrawVert *verts, int numIndexes, const int *indexes, bool useUnsmoothedTangents) {
@@ -2272,7 +2272,7 @@ deformInfo_t *R_BuildDeformInfo(int numVerts, const idDrawVert *verts, int numIn
 //	R_RemoveDuplicatedTriangles( &tri );
 //	R_RemoveDegenerateTriangles( &tri );
 //	R_RemoveUnusedVerts( &tri );
-	#if MD5_ENABLE_GIBS > 0 // ZZZZ
+	#if MD5_ENABLE_GIBS > 0 // HINTS
 	R_IdentifySilEdges(&tri, false, hintFaces);
 	#else
 	R_IdentifySilEdges(&tri, false);			// we cannot remove coplanar edges, because they can deform to silhouettes

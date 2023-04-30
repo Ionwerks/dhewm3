@@ -1511,7 +1511,7 @@ typedef struct deformInfo_s { // NB: Better pointer alignment, adds; numDominant
 	int				numDupVerts; // Never seems to be used for a mesh with UnsmoothedTangents.
 	int				numMirroredVerts;
 	int				numDominantTris;
-	int				numHiddenTris; // ZZZZ
+	int				numHiddenTris; // HINTS
 	glIndex_t*		indexes;
 	glIndex_t*		silIndexes;
 	silEdge_t*		silEdges;
@@ -1555,7 +1555,7 @@ void				R_AllocDeformInfo(deformInfo_t* deformInfo);
 void				R_FreeDeformInfoDominantTris(deformInfo_t* deformInfo);
 #endif
 
-#if MD5_ENABLE_GIBS > 0 // ZZZZ
+#if MD5_ENABLE_GIBS > 0 // HINTS
 deformInfo_t*		R_BuildDeformInfo(int numVerts, const idDrawVert* verts, int numIndexes, const int* indexes, bool useUnsmoothedTangents, int hintFaces = 0);
 #else
 deformInfo_t *		R_BuildDeformInfo(int numVerts, const idDrawVert *verts, int numIndexes, const int *indexes, bool useUnsmoothedTangents);

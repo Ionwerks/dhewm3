@@ -238,8 +238,10 @@ private:
 	idStr					name;
 	idVec3					totaldelta;
 	mutable int				ref_count;
-
 public:
+	#if MD5_ENABLE_GIBS > 0 // ANIMS
+	int						gibbedLimit;
+	#endif
 							idMD5Anim();
 							~idMD5Anim();
 
@@ -250,6 +252,7 @@ public:
 	bool					LoadAnim( const char *filename );
 	#if MD5_BINARY_ANIM > 0
 	bool					LoadBinary(const char* filename, const char* baseFolder);
+	int						ZoneParse(const char* zone); // , int& step);
 	#endif
 
 	void					IncreaseRefs( void ) const;
@@ -310,7 +313,11 @@ public:
 	bool						GetOriginRotation( idQuat &rotation, int animNum, int currentTime, int cyclecount ) const;
 	bool						GetBounds( idBounds &bounds, int animNum, int time, int cyclecount ) const;
 	const char					*AddFrameCommand( const class idDeclModelDef *modelDef, int framenum, idLexer &src, const idDict *def );
-	void						CallFrameCommands( idEntity *ent, int from, int to ) const;
+	#if MD5_ENABLE_GIBS > 0 // ANIMS
+	void						CallFrameCommands(idEntity* ent, int from, int to, int uses = 0) const;
+	#else
+	void						CallFrameCommands(idEntity* ent, int from, int to) const;
+	#endif
 	bool						HasFrameCommands( void ) const;
 
 								// returns first frame (zero based) that command occurs.  returns -1 if not found.

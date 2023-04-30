@@ -254,7 +254,7 @@ void idMD5Mesh::ParseMesh(idLexer &parser, int numJoints, const idJointMat *join
 	parser.ExpectTokenString( "numverts" );
 	count = parser.ParseInt();
 
-	#if MD5_ENABLE_GIBS > 0 // ZZZZ
+	#if MD5_ENABLE_GIBS > 0 // HINTS
 	int hintIndex = count;
 	int hintFaces = 0;
 	#endif
@@ -292,7 +292,7 @@ void idMD5Mesh::ParseMesh(idLexer &parser, int numJoints, const idJointMat *join
 		firstWeightForVertex[ i ]	= parser.ParseInt();
 		numWeightsForVertex[ i ]	= parser.ParseInt();
 
-		#if MD5_ENABLE_GIBS > 0 // ZZZZ
+		#if MD5_ENABLE_GIBS > 0 // HINTS
 		if (trim && hintIndex > i) {
 			if (texCoords[i].x < -0.1250f || texCoords[i].x > +1.1250f || texCoords[i].y < -0.1250f || texCoords[i].y > +1.1250f) {
 				hintIndex = i;
@@ -329,7 +329,7 @@ void idMD5Mesh::ParseMesh(idLexer &parser, int numJoints, const idJointMat *join
 		tris[ i * 3 + 1 ] = parser.ParseInt();
 		tris[ i * 3 + 2 ] = parser.ParseInt();
 
-		#if MD5_ENABLE_GIBS > 0 // ZZZZ
+		#if MD5_ENABLE_GIBS > 0 // HINTS
 		if (trim && hintIndex < texCoords.Num()) {
 			if (tris[i * 3 + 0] >= hintIndex) hintFaces++; else
 			if (tris[i * 3 + 1] >= hintIndex) hintFaces++; else
@@ -411,7 +411,7 @@ void idMD5Mesh::ParseMesh(idLexer &parser, int numJoints, const idJointMat *join
 	}
 	TransformVerts( verts, joints );
 
-	#if MD5_ENABLE_GIBS > 0 // ZZZZ
+	#if MD5_ENABLE_GIBS > 0 // HINTS
 	#if MD5_BINARY_MESH > 1 // WRITE
 	deformInfo = R_BuildDeformInfo(texCoords.Num(), verts, tris.Num(), tris.Ptr(), (data_fd == NULL && shader->UseUnsmoothedTangents()) || (data_fd != NULL && shaderComment.Icmp("NoUnsmoothedTangents")), hintFaces);
 	#else
@@ -425,7 +425,7 @@ void idMD5Mesh::ParseMesh(idLexer &parser, int numJoints, const idJointMat *join
 	#endif
 	#endif
 
-	#if MD5_ENABLE_GIBS > 0 // ZZZZ
+	#if MD5_ENABLE_GIBS > 0 // HINTS
 	if (hintFaces) deformInfo->numHiddenTris = hintFaces * 3;
 	#endif
 
@@ -477,7 +477,7 @@ void idMD5Mesh::FetchData(idFile* data_fd) { if (deformInfo) return; // NB: Some
 
 	deformInfo = R_AllocDeformInfo();
 	
-	data_fd->Read(deformInfo,       sizeof(int             ) * 8              ); deformInfo->numHiddenTris = 0; // ZZZZ TODO
+	data_fd->Read(deformInfo,       sizeof(int             ) * 8              ); deformInfo->numHiddenTris = 0; // HINTS // TODO
 	data_fd->Read(texCoords.Ptr(),  sizeof(texCoords[0]    ) * texCoords.Num());
 
 	#if MD5_ENABLE_LODS > 2 // DEBUG+
@@ -609,7 +609,7 @@ void idMD5Mesh::UpdateSurface( const struct renderEntity_s *ent, const idJointMa
 		R_DeriveTangents( tri );
 	}
 
-	#if MD5_ENABLE_GIBS > 0 // ZZZZ
+	#if MD5_ENABLE_GIBS > 0 // HINTS
 	if (deformInfo->numHiddenTris) {
 		tri->numIndexes -= deformInfo->numHiddenTris;
 		tri->silIndexes -= deformInfo->numHiddenTris;
