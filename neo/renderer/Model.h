@@ -47,7 +47,7 @@ If you have questions concerning this license or the applicable additional terms
 #define MD5_CAMERA_EXT			"md5camera"
 #define MD5_VERSION				10
 #define MD5_ENABLE_LODS			3 // 0=Disable, 1=Enable, 2=1+ai_showLevelOfDetail, 3=2+r_testUnsmoothedTangents
-#define MD5_ENABLE_GIBS			2 // 0=Disable, 1=Enable, 2=Enable+Debug
+#define MD5_ENABLE_GIBS			2 // 0=Disable, 1=Enable, 2=Enable+NoDraw 3=Enable+NoDraw+Debug
 #define MD5_GIBBED_HEAD			2
 #define MD5_GIBBED_BODY			4
 #define MD5_BINARY_MESH			4 // 0=Disable, 1=Enable, 2=1+binaryExport, 3=1+binaryExport+Text, 4=1+binaryExport+Text+Save
@@ -420,7 +420,7 @@ public:
 	virtual void				WriteToDemoFile( class idDemoFile *f ) = 0;
 
 	#if MD5_ENABLE_GIBS > 0
-	int   gibZones;
+	int   gibParts;
 	int   gibBleed;
 	int   gibSmoke;
 	int   gibSpark;

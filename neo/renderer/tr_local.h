@@ -560,7 +560,11 @@ void *R_GetCommandBuffer( int bytes );
 bool R_GlobalShaderOverride( const idMaterial **shader );
 
 // this does various checks before calling the idDeclSkin
-const idMaterial *R_RemapShaderBySkin( const idMaterial *shader, const idDeclSkin *customSkin, const idMaterial *customShader );
+#if MD5_ENABLE_GIBS > 1 // SKINS
+const idMaterial* R_RemapShaderBySkin(const idMaterial* shader, const idDeclSkin* customSkin, const idMaterial* customShader, const idRenderModel* model = NULL);
+#else
+const idMaterial *R_RemapShaderBySkin(const idMaterial* shader, const idDeclSkin* customSkin, const idMaterial* customShader);
+#endif
 
 
 //====================================================
@@ -1504,10 +1508,10 @@ typedef struct deformInfo_s { // NB: Better pointer alignment, adds; numDominant
 	int				numOutputVerts;
 	int				numIndexes;
 	int				numSilEdges;
-	int				numDupVerts;
+	int				numDupVerts; // Never seems to be used for a mesh with UnsmoothedTangents.
 	int				numMirroredVerts;
 	int				numDominantTris;
-	int				numWeights;
+	int				numHiddenTris; // ZZZZ
 	glIndex_t*		indexes;
 	glIndex_t*		silIndexes;
 	silEdge_t*		silEdges;
@@ -1551,7 +1555,11 @@ void				R_AllocDeformInfo(deformInfo_t* deformInfo);
 void				R_FreeDeformInfoDominantTris(deformInfo_t* deformInfo);
 #endif
 
-deformInfo_t *		R_BuildDeformInfo( int numVerts, const idDrawVert *verts, int numIndexes, const int *indexes, bool useUnsmoothedTangents );
+#if MD5_ENABLE_GIBS > 0 // ZZZZ
+deformInfo_t*		R_BuildDeformInfo(int numVerts, const idDrawVert* verts, int numIndexes, const int* indexes, bool useUnsmoothedTangents, int hintFaces = 0);
+#else
+deformInfo_t *		R_BuildDeformInfo(int numVerts, const idDrawVert *verts, int numIndexes, const int *indexes, bool useUnsmoothedTangents);
+#endif
 void				R_FreeDeformInfo( deformInfo_t *deformInfo );
 int					R_DeformInfoMemoryUsed( deformInfo_t *deformInfo );
 

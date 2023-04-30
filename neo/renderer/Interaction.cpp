@@ -870,7 +870,11 @@ void idInteraction::CreateInteraction( const idRenderModel *model ) {
 
 		// determine the shader for this surface, possibly by skinning
 		shader = surf->shader;
-		shader = R_RemapShaderBySkin( shader, entityDef->parms.customSkin, entityDef->parms.customShader );
+		#if MD5_ENABLE_GIBS > 1 // SKINS
+		shader = R_RemapShaderBySkin(shader, entityDef->parms.customSkin, entityDef->parms.customShader, model);
+		#else
+		shader = R_RemapShaderBySkin(shader, entityDef->parms.customSkin, entityDef->parms.customShader);
+		#endif
 
 		if ( !shader ) {
 			continue;

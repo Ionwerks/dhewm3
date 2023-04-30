@@ -1035,7 +1035,12 @@ guiPoint_t	idRenderWorldLocal::GuiTrace( qhandle_t entityHandle, const idVec3 st
 			continue;
 		}
 
-		shader = R_RemapShaderBySkin( surf->shader, def->parms.customSkin, def->parms.customShader );
+		#if MD5_ENABLE_GIBS > 1 // SKINS
+		shader = R_RemapShaderBySkin(surf->shader, def->parms.customSkin, def->parms.customShader, model);
+		#else
+		shader = R_RemapShaderBySkin(surf->shader, def->parms.customSkin, def->parms.customShader);
+		#endif
+
 		if ( !shader ) {
 			continue;
 		}
@@ -1112,7 +1117,11 @@ bool idRenderWorldLocal::ModelTrace( modelTrace_t &trace, qhandle_t entityHandle
 	for ( i = 0; i < model->NumBaseSurfaces(); i++ ) {
 		surf = model->Surface( i );
 
-		shader = R_RemapShaderBySkin( surf->shader, def->parms.customSkin, def->parms.customShader );
+		#if MD5_ENABLE_GIBS > 1 // SKINS
+		shader = R_RemapShaderBySkin(surf->shader, def->parms.customSkin, def->parms.customShader, model);
+		#else
+		shader = R_RemapShaderBySkin(surf->shader, def->parms.customSkin, def->parms.customShader);
+		#endif
 
 		if ( shader->GetSurfaceFlags() & SURF_COLLISION ) {
 			collisionSurface = true;
@@ -1124,7 +1133,11 @@ bool idRenderWorldLocal::ModelTrace( modelTrace_t &trace, qhandle_t entityHandle
 	for ( i = 0; i < model->NumBaseSurfaces(); i++ ) {
 		surf = model->Surface( i );
 
-		shader = R_RemapShaderBySkin( surf->shader, def->parms.customSkin, def->parms.customShader );
+		#if MD5_ENABLE_GIBS > 1 // SKINS
+		shader = R_RemapShaderBySkin(surf->shader, def->parms.customSkin, def->parms.customShader, model);
+		#else
+		shader = R_RemapShaderBySkin(surf->shader, def->parms.customSkin, def->parms.customShader);
+		#endif
 
 		if ( !surf->geometry || !shader ) {
 			continue;
@@ -1256,7 +1269,11 @@ bool idRenderWorldLocal::Trace( modelTrace_t &trace, const idVec3 &start, const 
 			for ( j = 0; j < model->NumSurfaces(); j++ ) {
 				const modelSurface_t *surf = model->Surface( j );
 
-				shader = R_RemapShaderBySkin( surf->shader, def->parms.customSkin, def->parms.customShader );
+				#if MD5_ENABLE_GIBS > 1 // SKINS
+				shader = R_RemapShaderBySkin(surf->shader, def->parms.customSkin, def->parms.customShader, model);
+				#else
+				shader = R_RemapShaderBySkin(surf->shader, def->parms.customSkin, def->parms.customShader);
+				#endif
 
 				// if no geometry or no shader
 				if ( !surf->geometry || !shader ) {
@@ -2137,7 +2154,11 @@ bool R_GlobalShaderOverride( const idMaterial **shader ) {
 R_RemapShaderBySkin
 ===============
 */
-const idMaterial *R_RemapShaderBySkin( const idMaterial *shader, const idDeclSkin *skin, const idMaterial *customShader ) {
+#if MD5_ENABLE_GIBS > 1 // SKINS
+const idMaterial* R_RemapShaderBySkin(const idMaterial* shader, const idDeclSkin* skin, const idMaterial* customShader, const idRenderModel* model) {
+#else
+const idMaterial *R_RemapShaderBySkin(const idMaterial *shader, const idDeclSkin *skin, const idMaterial *customShader) {
+#endif
 
 	if ( !shader ) {
 		return NULL;
@@ -2147,6 +2168,10 @@ const idMaterial *R_RemapShaderBySkin( const idMaterial *shader, const idDeclSki
 	if ( !shader->IsDrawn() ) {
 		return shader;
 	}
+
+	#if MD5_ENABLE_GIBS > 1 // SKINS
+	if (model && model->gibParts) return shader;
+	#endif
 
 	if ( customShader ) {
 		// this is sort of a hack, but cause deformed surfaces to map to empty surfaces,

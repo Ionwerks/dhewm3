@@ -1132,7 +1132,7 @@ int	idParticleStage::ParticleVerts( particleGen_t *g, idVec3 origin, idDrawVert 
 	#if MD5_ENABLE_GIBS > 0
 	angle = (initialAngle > 0.00f) ? initialAngle : 360 * g->random.RandomFloat(); if (initialAngle < 0.00f) angle -= fmodf(angle, -initialAngle);
 	#else
-	angle = (initialAngle) ? initialAngle : 360 * g->random.RandomFloat();
+	angle = (initialAngle        ) ? initialAngle : 360 * g->random.RandomFloat();
 	#endif
 
 	float	angleMove = rotationSpeed.Integrate( g->frac, g->random ) * particleLife;

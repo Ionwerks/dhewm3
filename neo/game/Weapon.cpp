@@ -31,6 +31,8 @@ If you have questions concerning this license or the applicable additional terms
 #include "framework/DeclSkin.h"
 #include "framework/Session.h"
 
+#include "physics/Clip.h" // MD5_ENABLE_GIBS
+
 #include "gamesys/SysCvar.h"
 #include "ai/AI.h"
 #include "Player.h"
@@ -3052,7 +3054,11 @@ void idWeapon::Event_Melee( void ) {
 				idVec3 kickDir, globalKickDir;
 				meleeDef->dict.GetVector( "kickDir", "0 0 0", kickDir );
 				globalKickDir = muzzleAxis * kickDir;
-				ent->Damage( owner, owner, globalKickDir, meleeDefName, owner->PowerUpModifier( MELEE_DAMAGE ), tr.c.id );
+				#if MD5_ENABLE_GIBS > 0
+				ent->Damage(owner, owner, globalKickDir, meleeDefName, owner->PowerUpModifier(MELEE_DAMAGE), CLIPMODEL_ID_TO_JOINT_HANDLE(tr.c.id));
+				#else
+				ent->Damage(owner, owner, globalKickDir, meleeDefName, owner->PowerUpModifier(MELEE_DAMAGE), tr.c.id);
+				#endif
 				hit = true;
 			}
 

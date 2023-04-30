@@ -207,7 +207,7 @@ idCVar ai_showHealth(				"ai_showHealth",			"0",			CVAR_GAME | CVAR_BOOL, "Draws
 #endif
 
 #if MD5_ENABLE_LODS > 1 // DEBUG
-idCVar ai_showLevelOfDetail(		"ai_showLevelOfDetail",		"0",			CVAR_GAME | CVAR_BOOL, "Draws the AI's current LOD above its head.");
+idCVar ai_showLevelOfDetail(		"ai_showLevelOfDetail",		"0",			CVAR_GAME | CVAR_INTEGER, "Draws the AI's current LOD above its head.");
 #endif
 
 idCVar g_dvTime(					"g_dvTime",					"1",			CVAR_GAME | CVAR_FLOAT, "" );

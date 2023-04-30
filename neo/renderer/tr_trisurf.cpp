@@ -1034,7 +1034,11 @@ can never create silhouette plains, and can be omited
 int	c_coplanarSilEdges;
 int	c_totalSilEdges;
 
-void R_IdentifySilEdges( srfTriangles_t *tri, bool omitCoplanarEdges ) {
+#if MD5_ENABLE_GIBS > 0 // ZZZZ
+void R_IdentifySilEdges(srfTriangles_t* tri, bool omitCoplanarEdges, int hintFaces = 0) {
+#else
+void R_IdentifySilEdges(srfTriangles_t *tri, bool omitCoplanarEdges) {
+#endif
 	int		i;
 	int		numTris;
 	int		shared, single;
@@ -1042,6 +1046,10 @@ void R_IdentifySilEdges( srfTriangles_t *tri, bool omitCoplanarEdges ) {
 	omitCoplanarEdges = false;	// optimization doesn't work for some reason
 
 	numTris = tri->numIndexes / 3;
+
+	#if MD5_ENABLE_GIBS > 0 // ZZZZ
+	numTris -= hintFaces;
+	#endif
 
 	numSilEdges = 0;
 	silEdgeHash.Clear();
@@ -1304,6 +1312,7 @@ typedef struct {
 } tangentVert_t;
 
 static void	R_DuplicateMirroredVertexes( srfTriangles_t *tri ) {
+
 	tangentVert_t	*tverts, *vert;
 	int				i, j;
 	int				totalVerts;
@@ -2232,7 +2241,11 @@ DEFORMED SURFACES
 R_BuildDeformInfo
 ===================
 */
-deformInfo_t *R_BuildDeformInfo( int numVerts, const idDrawVert *verts, int numIndexes, const int *indexes, bool useUnsmoothedTangents ) {
+#if MD5_ENABLE_GIBS > 0 // ZZZZ
+deformInfo_t* R_BuildDeformInfo(int numVerts, const idDrawVert* verts, int numIndexes, const int* indexes, bool useUnsmoothedTangents, int hintFaces) {
+#else
+deformInfo_t *R_BuildDeformInfo(int numVerts, const idDrawVert *verts, int numIndexes, const int *indexes, bool useUnsmoothedTangents) {
+#endif
 	deformInfo_t	*deform;
 	srfTriangles_t	tri;
 	int				i;
@@ -2259,8 +2272,11 @@ deformInfo_t *R_BuildDeformInfo( int numVerts, const idDrawVert *verts, int numI
 //	R_RemoveDuplicatedTriangles( &tri );
 //	R_RemoveDegenerateTriangles( &tri );
 //	R_RemoveUnusedVerts( &tri );
-	R_IdentifySilEdges( &tri, false );			// we cannot remove coplanar edges, because
-												// they can deform to silhouettes
+	#if MD5_ENABLE_GIBS > 0 // ZZZZ
+	R_IdentifySilEdges(&tri, false, hintFaces);
+	#else
+	R_IdentifySilEdges(&tri, false);			// we cannot remove coplanar edges, because they can deform to silhouettes
+	#endif
 
 	R_DuplicateMirroredVertexes( &tri );		// split mirror points into multiple points
 

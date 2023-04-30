@@ -182,10 +182,6 @@ void idMD5Mesh::ParseMesh(idLexer &parser, int numJoints, const idJointMat *join
 
 	parser.ExpectTokenString( "{" );
 
-	#if MD5_BINARY_MESH > 1 // WRITE
-	idStr blockComment; parser.ReadRestOfLine(blockComment);
-	#endif
-
 	//
 	// parse name
 	//
@@ -201,28 +197,34 @@ void idMD5Mesh::ParseMesh(idLexer &parser, int numJoints, const idJointMat *join
 	parser.ReadToken( &token );
 	shaderName = token;
 
+	#if MD5_ENABLE_GIBS > 0 || MD5_BINARY_MESH > 1 // WRITE
+	idStr shaderComment; parser.ReadRestOfLine(shaderComment);
+	#endif
+
 	#if MD5_ENABLE_GIBS > 0
-	idStr shaderComment;  parser.ReadRestOfLine(shaderComment);
 	int hide = idStr::FindText(shaderComment.c_str(), "HIDE:");
 	if (hide >= 0) ParseZone(&shaderComment.c_str()[hide + 5], 0);
 	int show = idStr::FindText(shaderComment.c_str(), "SHOW:");
 	if (show >= 0) ParseZone(&shaderComment.c_str()[show + 5], 1);
 	int stub = idStr::FindText(shaderComment.c_str(), "STUB:");
 	if (stub >= 0) ParseZone(&shaderComment.c_str()[stub + 5], 2);
+	int trim = idStr::FindText(shaderComment.c_str(), "TRIM!") + 1;
 	#endif
 
 	#if MD5_BINARY_MESH > 2 // WRITE+
 	if (text_fd) {
 		#if MD5_ENABLE_GIBS > 0
 		const char* spurts[4] = {"", "%", "$", "#"};
-		if /*el*/ (gibZones == 0) {
-			text_fd->Printf("mesh {\n\tshader \"%s\"\n",                shaderName.c_str()                                              );
+		if /*el*/ (gibZones == 0 && trim == 0) {
+			text_fd->Printf("mesh {\n\tshader \"%s\"\n",                  shaderName.c_str()                                                                    );
+		} else if (gibZones == 0) {
+			text_fd->Printf("mesh {\n\tshader \"%s\" // TRIM!\n",         shaderName.c_str()                                                                    );
 		} else if (gibShown == 0) {
-			text_fd->Printf("mesh {\n\tshader \"%s\" // HIDE:0x%X%s\n", shaderName.c_str(), (gibZones           ) >> 1, spurts[gibSpurt]);
+			text_fd->Printf("mesh {\n\tshader \"%s\" // HIDE:0x%X%s%s\n", shaderName.c_str(), (gibZones           ) >> 1, spurts[gibSpurt], trim ? "&TRIM!" : "");
 		} else if (gibShown == 1) {
-			text_fd->Printf("mesh {\n\tshader \"%s\" // SHOW:0x%X%s\n", shaderName.c_str(), (gibZones           ) >> 1, spurts[gibSpurt]);
+			text_fd->Printf("mesh {\n\tshader \"%s\" // SHOW:0x%X%s%s\n", shaderName.c_str(), (gibZones           ) >> 1, spurts[gibSpurt], trim ? "&TRIM!" : "");
 		} else {
-			text_fd->Printf("mesh {\n\tshader \"%s\" // STUB:0x%X%s\n", shaderName.c_str(), (gibZones | gibShown) >> 1, spurts[gibSpurt]);
+			text_fd->Printf("mesh {\n\tshader \"%s\" // STUB:0x%X%s%s\n", shaderName.c_str(), (gibZones | gibShown) >> 1, spurts[gibSpurt], trim ? "&TRIM!" : "");
 		}
 		#else
 		text_fd->Printf("mesh {\n\tshader \"%s\"\n", shaderName.c_str());
@@ -251,6 +253,11 @@ void idMD5Mesh::ParseMesh(idLexer &parser, int numJoints, const idJointMat *join
 	//
 	parser.ExpectTokenString( "numverts" );
 	count = parser.ParseInt();
+
+	#if MD5_ENABLE_GIBS > 0 // ZZZZ
+	int hintIndex = count;
+	int hintFaces = 0;
+	#endif
 
 	#if MD5_BINARY_MESH > 0
 	bool load_data = false;
@@ -285,6 +292,14 @@ void idMD5Mesh::ParseMesh(idLexer &parser, int numJoints, const idJointMat *join
 		firstWeightForVertex[ i ]	= parser.ParseInt();
 		numWeightsForVertex[ i ]	= parser.ParseInt();
 
+		#if MD5_ENABLE_GIBS > 0 // ZZZZ
+		if (trim && hintIndex > i) {
+			if (texCoords[i].x < -0.1250f || texCoords[i].x > +1.1250f || texCoords[i].y < -0.1250f || texCoords[i].y > +1.1250f) {
+				hintIndex = i;
+			}
+		}
+		#endif
+
 		if ( !numWeightsForVertex[ i ] ) {
 			parser.Error( "Vertex without any joint weights." );
 		}
@@ -313,6 +328,14 @@ void idMD5Mesh::ParseMesh(idLexer &parser, int numJoints, const idJointMat *join
 		tris[ i * 3 + 0 ] = parser.ParseInt();
 		tris[ i * 3 + 1 ] = parser.ParseInt();
 		tris[ i * 3 + 2 ] = parser.ParseInt();
+
+		#if MD5_ENABLE_GIBS > 0 // ZZZZ
+		if (trim && hintIndex < texCoords.Num()) {
+			if (tris[i * 3 + 0] >= hintIndex) hintFaces++; else
+			if (tris[i * 3 + 1] >= hintIndex) hintFaces++; else
+			if (tris[i * 3 + 2] >= hintIndex) hintFaces++;
+		}
+		#endif
 	}
 
 	//
@@ -367,6 +390,8 @@ void idMD5Mesh::ParseMesh(idLexer &parser, int numJoints, const idJointMat *join
 
 	parser.ExpectTokenString( "}" );
 
+
+
 	// update counters
 	c_numVerts += texCoords.Num();
 	c_numWeights += numWeights;
@@ -386,14 +411,26 @@ void idMD5Mesh::ParseMesh(idLexer &parser, int numJoints, const idJointMat *join
 	}
 	TransformVerts( verts, joints );
 
+	#if MD5_ENABLE_GIBS > 0 // ZZZZ
 	#if MD5_BINARY_MESH > 1 // WRITE
-	deformInfo = R_BuildDeformInfo(texCoords.Num(), verts, tris.Num(), tris.Ptr(), (data_fd == NULL && shader->UseUnsmoothedTangents()) || (data_fd != NULL && blockComment.Icmp("NoUnsmoothedTangents")));
+	deformInfo = R_BuildDeformInfo(texCoords.Num(), verts, tris.Num(), tris.Ptr(), (data_fd == NULL && shader->UseUnsmoothedTangents()) || (data_fd != NULL && shaderComment.Icmp("NoUnsmoothedTangents")), hintFaces);
+	#else
+	deformInfo = R_BuildDeformInfo(texCoords.Num(), verts, tris.Num(), tris.Ptr(), shader->UseUnsmoothedTangents(), hintFaces);
+	#endif
+	#else
+	#if MD5_BINARY_MESH > 1 // WRITE
+	deformInfo = R_BuildDeformInfo(texCoords.Num(), verts, tris.Num(), tris.Ptr(), (data_fd == NULL && shader->UseUnsmoothedTangents()) || (data_fd != NULL && shaderComment.Icmp("NoUnsmoothedTangents")));
 	#else
 	deformInfo = R_BuildDeformInfo(texCoords.Num(), verts, tris.Num(), tris.Ptr(), shader->UseUnsmoothedTangents());
 	#endif
+	#endif
+
+	#if MD5_ENABLE_GIBS > 0 // ZZZZ
+	if (hintFaces) deformInfo->numHiddenTris = hintFaces * 3;
+	#endif
 
 	#if MD5_BINARY_MESH > 2 // WRITE+
-	if (text_fd) text_fd->Printf("\tnumverts %d\n\tnumtris %d\n\tnumweights %d\n}\n\n", texCoords.Num(), tris.Num() / 3, numWeights); // NB: By here numWeights may be revised (but we don't use it).
+	if (text_fd) text_fd->Printf("\tnumverts %d\n\tnumtris %d\n\tnumweights %d\n}\n\n", texCoords.Num(), tris.Num() / 3, numWeights);
 	#endif
 
 	#if MD5_BINARY_MESH > 1 // WRITE
@@ -414,12 +451,11 @@ idMD5Mesh::WriteData
 void idMD5Mesh::WriteData(idFile* data_fd) { // NB: Binarisation is not strictly portable; presumes int and float are each of 4-bytes (and little-endian).
 
 	deformInfo->numDominantTris = deformInfo->dominantTris ? deformInfo->numOutputVerts : 0;
-	deformInfo->numWeights      = numWeights; // NB: May be expanded by R_BuildDeformInfo.
 
 	data_fd->Write(deformInfo,      sizeof(int             ) * 8              );
 	data_fd->Write(texCoords.Ptr(), sizeof(texCoords[0]    ) * texCoords.Num());
-	data_fd->Write(scaledWeights,   sizeof(scaledWeights[0]) * numWeights     );
-	data_fd->Write(weightIndex,     sizeof(weightIndex[0]  ) * numWeights * 2 );
+	data_fd->Write(scaledWeights,   sizeof(scaledWeights[0]) *     numWeights );
+	data_fd->Write(weightIndex,     sizeof(weightIndex[0]  ) * 2 * numWeights );
 
 	if (deformInfo->numIndexes         ) data_fd->Write(deformInfo->indexes,       sizeof(deformInfo->indexes[0]      ) * deformInfo->numIndexes      );
 	if (deformInfo->numIndexes         ) data_fd->Write(deformInfo->silIndexes,    sizeof(deformInfo->silIndexes[0]   ) * deformInfo->numIndexes      );
@@ -441,8 +477,12 @@ void idMD5Mesh::FetchData(idFile* data_fd) { if (deformInfo) return; // NB: Some
 
 	deformInfo = R_AllocDeformInfo();
 	
-	data_fd->Read(deformInfo,       sizeof(int             ) * 8              );
+	data_fd->Read(deformInfo,       sizeof(int             ) * 8              ); deformInfo->numHiddenTris = 0; // ZZZZ TODO
 	data_fd->Read(texCoords.Ptr(),  sizeof(texCoords[0]    ) * texCoords.Num());
+
+	#if MD5_ENABLE_LODS > 2 // DEBUG+
+	if (deformInfo->numDominantTris == 0) common->Printf("NoDominantTris binarised for; %s\n", data_fd->GetFullPath());
+	#endif
 
 	#if MD5_ENABLE_LODS > 2 // DEBUG+
 	if (shader->UseUnsmoothedTangents() != true && r_testUnsmoothedTangents.GetInteger() != 2) deformInfo->numDominantTris = -deformInfo->numDominantTris;
@@ -450,12 +490,11 @@ void idMD5Mesh::FetchData(idFile* data_fd) { if (deformInfo) return; // NB: Some
 	if (shader->UseUnsmoothedTangents() != true) deformInfo->numDominantTris = -deformInfo->numDominantTris;
 	#endif
 
-	numWeights    = deformInfo->numWeights; // NB: May be expanded by R_BuildDeformInfo.
 	scaledWeights = (idVec4*)Mem_Alloc16(sizeof(scaledWeights[0]) * numWeights);
-	weightIndex   = (int*)Mem_Alloc16(sizeof(weightIndex[0]) * numWeights * 2 );
+	weightIndex   = (int*)Mem_Alloc16(sizeof(weightIndex[0])  * 2 * numWeights);
 
-	data_fd->Read(scaledWeights,    sizeof(scaledWeights[0]) * numWeights     );
-	data_fd->Read(weightIndex,      sizeof(weightIndex[0]  ) * numWeights * 2 );
+	data_fd->Read(scaledWeights,    sizeof(scaledWeights[0])      * numWeights);
+	data_fd->Read(weightIndex,      sizeof(weightIndex[0]  )  * 2 * numWeights);
 
 	R_AllocDeformInfo(deformInfo);
 
@@ -569,6 +608,14 @@ void idMD5Mesh::UpdateSurface( const struct renderEntity_s *ent, const idJointMa
 		// set face planes, vertex normals, tangents
 		R_DeriveTangents( tri );
 	}
+
+	#if MD5_ENABLE_GIBS > 0 // ZZZZ
+	if (deformInfo->numHiddenTris) {
+		tri->numIndexes -= deformInfo->numHiddenTris;
+		tri->silIndexes -= deformInfo->numHiddenTris;
+	}
+	#endif
+
 }
 
 /*
@@ -725,7 +772,7 @@ void idRenderModelMD5::LoadModel() {
 	idJointMat *poseMat3;
 
 	#if MD5_ENABLE_GIBS > 0
-	gibZones = 0;
+	gibParts = 0;
 	gibBleed = 0;
 	gibSmoke = 0;
 	gibSpark = 0;
@@ -847,7 +894,7 @@ void idRenderModelMD5::LoadModel() {
 		#endif
 		#if MD5_ENABLE_GIBS > 0
 		if (meshes[i].gibZones) {
-			gibZones |= meshes[i].gibZones;
+			gibParts |= meshes[i].gibZones;
 			if (meshes[i].gibSpurt) {
 				if (meshes[i].gibSpurt == 3) gibSpark |= meshes[i].gibZones; else
 				if (meshes[i].gibSpurt == 2) gibSmoke |= meshes[i].gibZones; else
@@ -1100,9 +1147,7 @@ idRenderModel *idRenderModelMD5::InstantiateDynamicModel( const struct renderEnt
 		// avoid deforming the surface if it will be a nodraw due to a skin remapping
 		// FIXME: may have to still deform clipping hulls
 		const idMaterial *shader = mesh->shader;
-
 		shader = R_RemapShaderBySkin( shader, ent->customSkin, ent->customShader );
-
 		#if MD5_ENABLE_GIBS > 0
 		if (shader == NULL) {
 			staticModel->DeleteSurfaceWithId(i); mesh->surfaceNum = -1; continue;
@@ -1153,12 +1198,27 @@ idRenderModel *idRenderModelMD5::InstantiateDynamicModel( const struct renderEnt
 				ent->hModel->lodLevel = int(sqrtf(lodRange) / r_lodRangeIncrements.GetFloat());
 				ent->hModel->lodRange = lodRange;
 			} else if (ent->hModel->lodIndex == ent->entityNum && ent->hModel->lodCalls < ent->hModel->lodCount) {
-				ent->hModel->lodCalls += 1;
-				ent->hModel->lodFaces += mesh->numTris;
-				ent->hModel->lodLevel  = int(sqrtf(lodRange) / r_lodRangeIncrements.GetFloat());
-				ent->hModel->lodRange  = lodRange;
+				ent->hModel->lodCalls = ent->hModel->lodCalls + 1;
+				ent->hModel->lodFaces = ent->hModel->lodFaces + mesh->numTris;
+				ent->hModel->lodLevel = int(sqrtf(lodRange) / r_lodRangeIncrements.GetFloat());
+				ent->hModel->lodRange = lodRange;
 			}
-			#endif
+		#endif
+		#if MD5_ENABLE_LODS > 1 && MD5_ENABLE_GIBS > 2 // DEBUG
+		} else if (mesh->gibZones) {
+			if (ent->hModel->lodFrame < idLib::frameNumber) {
+				ent->hModel->lodFrame = idLib::frameNumber;
+				ent->hModel->lodIndex = ent->entityNum;
+				ent->hModel->lodCalls = 1;
+				ent->hModel->lodFaces = mesh->gibZones;
+				ent->hModel->lodLevel = mesh->gibShown;
+				ent->hModel->lodRange = 0;
+			} else if (ent->hModel->lodIndex == ent->entityNum) {
+				ent->hModel->lodCalls = ent->hModel->lodCalls + 1;
+				ent->hModel->lodFaces = ent->hModel->lodFaces | mesh->gibZones;
+				ent->hModel->lodLevel = ent->hModel->lodLevel | mesh->gibShown;
+			}
+		#endif
 		}
 		#endif
 

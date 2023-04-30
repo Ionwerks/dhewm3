@@ -1226,7 +1226,7 @@ void idAI::Think( void ) {
 */
 
 	#if MD5_ENABLE_GIBS > 0
-	Bleed();
+	Bleed(renderEntity.gibbedZones);
 	#endif
 
 	UpdateMuzzleFlash();
@@ -1247,8 +1247,9 @@ void idAI::Think( void ) {
 	if (ai_showLevelOfDetail.GetBool()) {
 		idRenderModel* model = this->GetRenderEntity()->hModel;
 		if (model->lodIndex == this->entityNumber) {
-			#if MD5_ENABLE_GIBS > 0
-			int   zones = model->gibZones;
+			#if MD5_ENABLE_GIBS > 2 // DEBUG
+			int   zones = model->gibParts;
+			int   sever = this->GetRenderEntity()->gibbedZones;
 			#endif
 			int   calls = model->lodCalls;
 			int   faces = model->lodFaces;
@@ -1256,8 +1257,9 @@ void idAI::Think( void ) {
 			float range = model->lodRange;
 			if (head.GetEntity()) {
 				model = head.GetEntity()->GetRenderEntity()->hModel;
-				#if MD5_ENABLE_GIBS > 0
-				zones |= model->gibZones;
+				#if MD5_ENABLE_GIBS > 2 // DEBUG
+				zones |= model->gibParts;
+				sever |= head.GetEntity()->GetRenderEntity()->gibbedZones; // I think this should already be combined in body.
 				#endif
 				calls += model->lodCalls;
 				faces += model->lodFaces;
@@ -1265,8 +1267,8 @@ void idAI::Think( void ) {
 			if (faces) {
 				idVec3 aboveHead(0.00f, 0.00f, 10.00f);
 				if (ai_showLevelOfDetail.GetInteger() > 2) {
-					#if MD5_ENABLE_GIBS > 0
-					gameRenderWorld->DrawText(va("%f (%x)", range, zones), this->GetEyePosition() + aboveHead, 0.2500f, colorWhite, gameLocal.GetLocalPlayer()->viewAngles.ToMat3());
+					#if MD5_ENABLE_GIBS > 2 // DEBUG
+					gameRenderWorld->DrawText(va("%x / %x", zones, sever), this->GetEyePosition() + aboveHead, 0.2500f, colorWhite, gameLocal.GetLocalPlayer()->viewAngles.ToMat3());
 					#else
 					gameRenderWorld->DrawText(va("%f",      range       ), this->GetEyePosition() + aboveHead, 0.2500f, colorWhite, gameLocal.GetLocalPlayer()->viewAngles.ToMat3());
 					#endif
@@ -2511,7 +2513,7 @@ void idAI::Turn( void ) {
 	if ( animflags.ai_no_turn ) {
 		return;
 	}
-	#if MD5_ENABLE_GIBS > 0
+	#if MD5_ENABLE_GIBS > 0 // TURN
 	if (renderEntity.gibbedZones & (MD5_GIBBED_HEAD | MD5_GIBBED_BODY)) {
 		static idVec3 old_pos = renderEntity.origin;
 		if ((old_pos - renderEntity.origin).LengthFast() > 0.50f) {

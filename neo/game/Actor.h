@@ -211,7 +211,7 @@ public:
 	bool					AnimDone( int channel, int blendFrames ) const;
 	#if MD5_ENABLE_GIBS > 0
 	void					Sever(renderEntity_t* entity, int& zone);
-	void					Bleed(int gibbedZone = 0, int location = 0);
+	void					Bleed(int gibbedZone = 0, int location = INVALID_JOINT);
 	#endif
 	virtual void			SpawnGibs(const idVec3& dir, const char* damageDefName);
 
@@ -240,6 +240,7 @@ protected:
 	#if MD5_ENABLE_GIBS > 0
 	idList<int>				damageBonesZone;
 	idList<int>				damageZonesBone;
+	idList<int>				damageZonesTime;
 	idList<idAngles>		damageZonesRoll;
 	idList<float>			damageZonesRate;
 	idStrList				damageZonesName;

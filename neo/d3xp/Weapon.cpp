@@ -30,6 +30,8 @@ If you have questions concerning this license or the applicable additional terms
 #include "framework/DeclEntityDef.h"
 #include "framework/DeclSkin.h"
 
+#include "physics/Clip.h" // MD5_ENABLE_GIBS
+
 #include "gamesys/SysCvar.h"
 #include "ai/AI.h"
 #include "Player.h"
@@ -3801,9 +3803,17 @@ void idWeapon::Event_Melee( void ) {
 					//Only do a quater of the damage mod
 					mod *= 0.25f;
 				}
-				ent->Damage( owner, owner, globalKickDir, meleeDefName, mod, tr.c.id );
+				#if MD5_ENABLE_GIBS > 0
+				ent->Damage(owner, owner, globalKickDir, meleeDefName, mod, CLIPMODEL_ID_TO_JOINT_HANDLE(tr.c.id));
+				#else
+				ent->Damage(owner, owner, globalKickDir, meleeDefName, mod, tr.c.id);
+				#endif
 #else
-				ent->Damage( owner, owner, globalKickDir, meleeDefName, owner->PowerUpModifier( MELEE_DAMAGE ), tr.c.id );
+				#if MD5_ENABLE_GIBS > 0
+				ent->Damage(owner, owner, globalKickDir, meleeDefName, owner->PowerUpModifier(MELEE_DAMAGE), CLIPMODEL_ID_TO_JOINT_HANDLE(tr.c.id));
+				#else
+				ent->Damage(owner, owner, globalKickDir, meleeDefName, owner->PowerUpModifier(MELEE_DAMAGE), tr.c.id);
+				#endif
 #endif
 				hit = true;
 			}
