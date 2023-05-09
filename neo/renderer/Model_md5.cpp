@@ -108,16 +108,16 @@ int idMD5Mesh::ZoneParse(const char* zone, int& step) {
 			char* rest = NULL;
 			char* next = NULL;
 			for (part = strtok_s(copy, ",", &rest); part && isdigit(part[0]); part = strtok_s(NULL, ",", &rest)) {
-				bits |= 1 << (1 + strtol(part, &next, 10));
+				bits |= 1 << (strtol(part, &next, 10) + 1);
 			}
-			step += next - copy;
 			free(copy);
+			step += next - copy;
 		} else {
 			int index = (zone[1] != '-' || zone[2] <= zone[0] || !isdigit(zone[2]) ? 0 : 2);
-			int start = (zone[0] - 47);
+			int start = (zone[0]     - 47); // 1-based index (0-bit is 'unassigned').
 			int until = (zone[index] - 47);
 			for (; start <= until; start++) bits |= (1 << start);
-			step += 1 + index;
+			step += index + 1;
 		}
 	}
 
@@ -133,18 +133,18 @@ void idMD5Mesh::ParseZone(const char* zone, int show) {
 	int step = 0;
 
 	if (zone) {
-		gibZones = ZoneParse(&zone[step], step); gibShown = (int)(show != 0);
+		gibZones = ZoneParse(&zone[step], step); gibShown = int(show != 0);
 	}
 
-	/* if (step && zone[step] == ';') { step++;
-		gibShown = ZoneParse(&zone[step], step) * (int)(show != 0);
-	} */
+//	if (step && zone[step] == ';') { step++;
+//		gibOther = ZoneParse(&zone[step], step);
+//	}
 
-	if (step && show > 1 && gibZones && ((gibZones - 1) & gibZones)) { // Must have more than one zone flag (or shown will end up zeroed).
+	if (step && show > 1 && gibZones && ((gibZones - 1) & gibZones)) { // Needs more than one zone flag (or shown will be zero).
 		gibShown = gibZones; gibZones = (gibZones & MD5_GIBBED_HEAD ? MD5_GIBBED_HEAD : 1 << (int)log2f(gibZones)); gibShown &= ~gibZones;
 	}
 
-	if (step) {
+	if (step && zone[step]) {
 		gibSpurt = (zone[step] == '#' ? 3 : zone[step] == '$' ? 2 : zone[step] == '%' ? 1 : 0);
 	}
 
@@ -202,29 +202,38 @@ void idMD5Mesh::ParseMesh(idLexer &parser, int numJoints, const idJointMat *join
 	#endif
 
 	#if MD5_ENABLE_GIBS > 0
-	int hide = idStr::FindText(shaderComment.c_str(), "HIDE:");
-	if (hide >= 0) ParseZone(&shaderComment.c_str()[hide + 5], 0);
-	int show = idStr::FindText(shaderComment.c_str(), "SHOW:");
-	if (show >= 0) ParseZone(&shaderComment.c_str()[show + 5], 1);
-	int stub = idStr::FindText(shaderComment.c_str(), "STUB:");
-	if (stub >= 0) ParseZone(&shaderComment.c_str()[stub + 5], 2);
-	int trim = idStr::FindText(shaderComment.c_str(), "TRIM!") + 1;
+	int trim;
+	trim = idStr::FindText(shaderComment.c_str(), "HIDE:");
+	if (trim >= 0) ParseZone(&shaderComment.c_str()[trim + 5], 0);
+	trim = idStr::FindText(shaderComment.c_str(), "SHOW:");
+	if (trim >= 0) ParseZone(&shaderComment.c_str()[trim + 5], 1);
+	trim = idStr::FindText(shaderComment.c_str(), "STUB:");
+	if (trim >= 0) ParseZone(&shaderComment.c_str()[trim + 5], 2);
+	trim = idStr::FindText(shaderComment.c_str(), "HIDE!");
+	if (trim >= 0) {gibZones = 0x0FFE; gibShown = 0x0000;}
+	trim = idStr::FindText(shaderComment.c_str(), "SHOW!");
+	if (trim >= 0) {gibZones = 0x0FFE; gibShown = 0x0001;}
+	trim = idStr::FindText(shaderComment.c_str(), "TRIM!") + 1;
 	#endif
 
 	#if MD5_BINARY_MESH > 2 // WRITE+
 	if (text_fd) {
 		#if MD5_ENABLE_GIBS > 0
 		const char* spurts[4] = {"", "%", "$", "#"};
-		if /*el*/ (gibZones == 0 && trim == 0) {
-			text_fd->Printf("mesh {\n\tshader \"%s\"\n",                  shaderName.c_str()                                                                    );
-		} else if (gibZones == 0) {
-			text_fd->Printf("mesh {\n\tshader \"%s\" // TRIM!\n",         shaderName.c_str()                                                                    );
-		} else if (gibShown == 0) {
-			text_fd->Printf("mesh {\n\tshader \"%s\" // HIDE:0x%X%s%s\n", shaderName.c_str(), (gibZones           ) >> 1, spurts[gibSpurt], trim ? "&TRIM!" : "");
-		} else if (gibShown == 1) {
-			text_fd->Printf("mesh {\n\tshader \"%s\" // SHOW:0x%X%s%s\n", shaderName.c_str(), (gibZones           ) >> 1, spurts[gibSpurt], trim ? "&TRIM!" : "");
+		if /*el*/ (gibZones == 0x0000 && trim == 0) {
+			text_fd->Printf("mesh {\n\tshader \"%s\"\n",                    shaderName.c_str()                                                                    );
+		} else if (gibZones == 0x0000) {
+			text_fd->Printf("mesh {\n\tshader \"%s\" // TRIM!\n",           shaderName.c_str()                                                                    );
+		} else if (gibZones == 0x0FFE && gibShown == 0x0000) {
+			text_fd->Printf("mesh {\n\tshader \"%s\" // HIDE!\n",           shaderName.c_str()                                                                    );
+		} else if (gibZones == 0x0FFE && gibShown == 0x0001) {
+			text_fd->Printf("mesh {\n\tshader \"%s\" // SHOW!\n",           shaderName.c_str()                                                                    );
+		} else if (gibShown == 0x0000) {
+			text_fd->Printf("mesh {\n\tshader \"%s\" // HIDE:0x%03X%s%s\n", shaderName.c_str(), (gibZones           ) >> 1, spurts[gibSpurt], trim ? "&TRIM!" : "");
+		} else if (gibShown == 0x0001) {
+			text_fd->Printf("mesh {\n\tshader \"%s\" // SHOW:0x%03X%s%s\n", shaderName.c_str(), (gibZones           ) >> 1, spurts[gibSpurt], trim ? "&TRIM!" : "");
 		} else {
-			text_fd->Printf("mesh {\n\tshader \"%s\" // STUB:0x%X%s%s\n", shaderName.c_str(), (gibZones | gibShown) >> 1, spurts[gibSpurt], trim ? "&TRIM!" : "");
+			text_fd->Printf("mesh {\n\tshader \"%s\" // STUB:0x%03X%s%s\n", shaderName.c_str(), (gibZones | gibShown) >> 1, spurts[gibSpurt], trim ? "&TRIM!" : "");
 		}
 		#else
 		text_fd->Printf("mesh {\n\tshader \"%s\"\n", shaderName.c_str());
@@ -404,7 +413,18 @@ void idMD5Mesh::ParseMesh(idLexer &parser, int numJoints, const idJointMat *join
 	// build the information that will be common to all animations of this mesh:
 	// silhouette edge connectivity and normal / tangent generation information
 	//
-	idDrawVert *verts = (idDrawVert *) _alloca16( texCoords.Num() * sizeof( idDrawVert ) );
+	#if 0 // TODO I think this has been fixed already (by enlarging the stack size).
+	size_t allocaSize = texCoords.Num() * sizeof(idDrawVert);
+	idDrawVert* verts;
+	if (allocaSize < 600000) {
+		verts = (idDrawVert*)_alloca16(allocaSize);
+	} else {
+		verts = (idDrawVert*)Mem_Alloc16(allocaSize);
+	}
+	#else
+	idDrawVert* verts = (idDrawVert*)_alloca16(texCoords.Num() * sizeof(idDrawVert));
+	#endif
+
 	for ( i = 0; i < texCoords.Num(); i++ ) {
 		verts[i].Clear();
 		verts[i].st = texCoords[i];
@@ -423,6 +443,10 @@ void idMD5Mesh::ParseMesh(idLexer &parser, int numJoints, const idJointMat *join
 	#else
 	deformInfo = R_BuildDeformInfo(texCoords.Num(), verts, tris.Num(), tris.Ptr(), shader->UseUnsmoothedTangents());
 	#endif
+	#endif
+
+	#if 0 // TODO I think this has been fixed already (by enlarging the stack size).
+	if (allocaSize >= 600000) Mem_Free16(verts);
 	#endif
 
 	#if MD5_ENABLE_GIBS > 0 // HINTS
@@ -477,7 +501,7 @@ void idMD5Mesh::FetchData(idFile* data_fd) { if (deformInfo) return; // NB: Some
 
 	deformInfo = R_AllocDeformInfo();
 	
-	data_fd->Read(deformInfo,       sizeof(int             ) * 8              ); deformInfo->numHiddenTris = 0; // HINTS // TODO
+	data_fd->Read(deformInfo,       sizeof(int             ) * 8              );
 	data_fd->Read(texCoords.Ptr(),  sizeof(texCoords[0]    ) * texCoords.Num());
 
 	#if MD5_ENABLE_LODS > 2 // DEBUG+
@@ -771,23 +795,6 @@ void idRenderModelMD5::LoadModel() {
 	idMD5Joint	*joint;
 	idJointMat *poseMat3;
 
-	#if MD5_ENABLE_GIBS > 0
-	gibParts = 0;
-	gibBleed = 0;
-	gibSmoke = 0;
-	gibSpark = 0;
-	#endif
-
-	#if MD5_ENABLE_LODS > 1 // DEBUG
-	lodFrame = 0;
-	lodIndex = 0;
-	lodCount = 0;
-	lodCalls = 0;
-	lodFaces = 0;
-	lodLevel = 0;
-	lodRange = 0.00f;
-	#endif
-
 	if ( !purged ) {
 		PurgeModel();
 	}
@@ -897,7 +904,7 @@ void idRenderModelMD5::LoadModel() {
 			gibParts |= meshes[i].gibZones;
 			if (meshes[i].gibSpurt) {
 				if (meshes[i].gibSpurt == 3) gibSpark |= meshes[i].gibZones; else
-				if (meshes[i].gibSpurt == 2) gibSmoke |= meshes[i].gibZones; else
+				if (meshes[i].gibSpurt == 2) gibFlame |= meshes[i].gibZones; else
 				if (meshes[i].gibSpurt == 1) gibBleed |= meshes[i].gibZones;
 			}
 		}
@@ -1093,11 +1100,12 @@ idRenderModelMD5::InstantiateDynamicModel
 ====================
 */
 idRenderModel *idRenderModelMD5::InstantiateDynamicModel( const struct renderEntity_s *ent, const struct viewDef_s *view, idRenderModel *cachedModel ) {
+
 	int					i, surfaceNum;
 	idMD5Mesh			*mesh;
 	idRenderModelStatic	*staticModel;
 
-	if ( cachedModel && !r_useCachedDynamicModels.GetBool() ) {
+	if (cachedModel && !r_useCachedDynamicModels.GetBool()) {
 		delete cachedModel;
 		cachedModel = NULL;
 	}
@@ -1130,6 +1138,13 @@ idRenderModel *idRenderModelMD5::InstantiateDynamicModel( const struct renderEnt
 
 	staticModel->bounds.Clear();
 
+	#if MD5_ENABLE_GIBS > 0
+	staticModel->gibParts = gibParts;
+//	staticModel->gibBleed = gibBleed;
+//	staticModel->gibFlame = gibFlame;
+//	staticModel->gibSpark = gibSpark;
+	#endif
+
 	if ( r_showSkel.GetInteger() ) {
 		if ( ( view != NULL ) && ( !r_skipSuppress.GetBool() || !ent->suppressSurfaceInViewID || ( ent->suppressSurfaceInViewID != view->renderView.viewID ) ) ) {
 			// only draw the skeleton
@@ -1146,20 +1161,25 @@ idRenderModel *idRenderModelMD5::InstantiateDynamicModel( const struct renderEnt
 	for( mesh = meshes.Ptr(), i = 0; i < meshes.Num(); i++, mesh++ ) {
 		// avoid deforming the surface if it will be a nodraw due to a skin remapping
 		// FIXME: may have to still deform clipping hulls
-		const idMaterial *shader = mesh->shader;
-		shader = R_RemapShaderBySkin( shader, ent->customSkin, ent->customShader );
 		#if MD5_ENABLE_GIBS > 0
-		if (shader == NULL) {
+		const idMaterial* shader = R_RemapShaderBySkin(mesh->shader, ent->customSkin, ent->customShader);
+		if /*el*/ (shader == NULL) {
 			staticModel->DeleteSurfaceWithId(i); mesh->surfaceNum = -1; continue;
 		} else if (mesh->gibZones) {
-			if (mesh->gibZones & ent->gibbedZones) { // A qualifying zone is gibbed.
-				if (mesh->gibShown == 0 || (mesh->gibShown & ent->gibbedZones) != 0) { // Always hide or ancestor gibbed.
+			if (gibParts == 0x0FFE && ent->gibbedZones < 2) { // We have a 'whole' mesh and no zones are gibbed. We may set gibbedZones|0x1 on death.
+				if /*el*/ (mesh->gibShown != 0x0000 || mesh->gibZones != 0x0FFE) {
 					staticModel->DeleteSurfaceWithId(i); mesh->surfaceNum = -1; continue;
-			//	} else if (shader->IsDrawn() != true && shader->SurfaceCastsShadow() != true) { // Suppress nodraw (to use the gib skeleton).
-			//		staticModel->DeleteSurfaceWithId(i); mesh->surfaceNum = -1; continue;
+				} else if (shader->IsDrawn() != true && shader->SurfaceCastsShadow() != true) {
+					staticModel->DeleteSurfaceWithId(i); mesh->surfaceNum = -1; continue;
+				}
+			} else if (mesh->gibZones & ent->gibbedZones) { // A qualifying zone is gibbed.
+				if /*el*/ (mesh->gibShown == 0x0000 || (mesh->gibShown & ent->gibbedZones) > 1) { // Always hide or ancestor gibbed. We may set gibbedZones|0x1 on death.
+					staticModel->DeleteSurfaceWithId(i); mesh->surfaceNum = -1; continue;
+				} else if (mesh->gibZones == 0x0FFE && shader->IsDrawn() != true && shader->SurfaceCastsShadow() != true) { // Suppress nodraw (to use the gib skeleton).
+					staticModel->DeleteSurfaceWithId(i); mesh->surfaceNum = -1; continue;
 				}
 			} else { // No qualifying zones are gibbed.
-				if (mesh->gibShown != 0) {
+				if /*el*/ (mesh->gibShown != 0x0000) {
 					staticModel->DeleteSurfaceWithId(i); mesh->surfaceNum = -1; continue;
 				} else if (shader->IsDrawn() != true && shader->SurfaceCastsShadow() != true) {
 					staticModel->DeleteSurfaceWithId(i); mesh->surfaceNum = -1; continue;
@@ -1169,13 +1189,14 @@ idRenderModel *idRenderModelMD5::InstantiateDynamicModel( const struct renderEnt
 			staticModel->DeleteSurfaceWithId(i); mesh->surfaceNum = -1; continue;
 		}
 		#else
+		const idMaterial *shader = mesh->shader;
+		shader = R_RemapShaderBySkin(shader, ent->customSkin, ent->customShader);
 		if (!shader || (!shader->IsDrawn() && !shader->SurfaceCastsShadow())) {
 			staticModel->DeleteSurfaceWithId(i);
 			mesh->surfaceNum = -1;
 			continue;
 		}
 		#endif
-
 		#if MD5_ENABLE_LODS > 0
 		if (mesh->lodUpper > 0.00f) {
 			float lodRange = (view ? (ent->origin - view->renderView.vieworg).LengthSqr() : 0.00f);
@@ -1210,13 +1231,14 @@ idRenderModel *idRenderModelMD5::InstantiateDynamicModel( const struct renderEnt
 				ent->hModel->lodFrame = idLib::frameNumber;
 				ent->hModel->lodIndex = ent->entityNum;
 				ent->hModel->lodCalls = 1;
-				ent->hModel->lodFaces = mesh->gibZones;
-				ent->hModel->lodLevel = mesh->gibShown;
+				ent->hModel->lodFaces = mesh->numTris;
+				ent->hModel->lodLevel = mesh->gibZones & (ent->gibbedZones ? ent->gibbedZones : 0x0FFE);
 				ent->hModel->lodRange = 0;
 			} else if (ent->hModel->lodIndex == ent->entityNum) {
 				ent->hModel->lodCalls = ent->hModel->lodCalls + 1;
-				ent->hModel->lodFaces = ent->hModel->lodFaces | mesh->gibZones;
-				ent->hModel->lodLevel = ent->hModel->lodLevel | mesh->gibShown;
+				ent->hModel->lodFaces = ent->hModel->lodFaces + (mesh->numTris);
+				ent->hModel->lodLevel = ent->hModel->lodLevel | (mesh->gibZones & (ent->gibbedZones ? ent->gibbedZones : 0x0FFE));
+				ent->hModel->lodRange = 0;
 			}
 		#endif
 		}
@@ -1366,6 +1388,21 @@ void idRenderModelMD5::PurgeModel() {
 	joints.Clear();
 	defaultPose.Clear();
 	meshes.Clear();
+	#if MD5_ENABLE_GIBS > 0
+	gibParts = 0;
+	gibBleed = 0;
+	gibFlame = 0;
+	gibSpark = 0;
+	#endif
+	#if MD5_ENABLE_LODS > 1 // DEBUG
+	lodFrame = 0;
+	lodIndex = 0;
+	lodCount = 0;
+	lodCalls = 0;
+	lodFaces = 0;
+	lodLevel = 0;
+	lodRange = 0.00f;
+	#endif
 }
 
 /*

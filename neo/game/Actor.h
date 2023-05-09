@@ -211,7 +211,7 @@ public:
 	bool					AnimDone( int channel, int blendFrames ) const;
 	#if MD5_ENABLE_GIBS > 0
 	void					Sever(renderEntity_t* entity, int& zone);
-	void					Bleed(int gibbedZone = 0, int location = INVALID_JOINT);
+	void					Bleed(int gibbedPart = 0, int gibbedZone = 0);
 	#endif
 	virtual void			SpawnGibs(const idVec3& dir, const char* damageDefName);
 
@@ -229,24 +229,27 @@ protected:
 	int						pain_threshold;		// how much damage monster can take at any one time before playing pain animation
 
 	#if MD5_ENABLE_GIBS > 0
-	const idDeclParticle*	damageEffect;
-	int						damageEffectCycle;
-	int						damageEffectStart;
-	bool					damageEffectDeath;
-	jointHandle_t			damageEffectJoint;
-	idMat3					damageEffectAngle;
-	#endif
-
-	#if MD5_ENABLE_GIBS > 0
 	idList<int>				damageBonesZone;
 	idList<int>				damageZonesBone;
-	idList<int>				damageZonesTime;
-	idList<idAngles>		damageZonesRoll;
+	idList<int>				damageZonesKill;
+	idList<int>				damageZonesHeap;
+	idList<idVec4>			damageZonesDrop;
 	idList<float>			damageZonesRate;
 	idStrList				damageZonesName;
 	#else
 	idStrList				damageGroups;		// body damage groups
 	idList<float>			damageScales;		// damage scale per damage gruop
+	#endif
+
+	#if MD5_ENABLE_GIBS > 0
+	const idDeclParticle*	damageEmitSever;
+	const idDeclParticle*	damageEmitSpray;
+	int						damageEmitStage;
+	int						damageEmitStart;
+	int						damageEmitDeath;
+	jointHandle_t			damageEmitJoint;
+	idMat3					damageEmitAngle;
+	idVec3					damageEmitShift;
 	#endif
 
 	bool						use_combat_bbox;	// whether to use the bounding box for combat collision

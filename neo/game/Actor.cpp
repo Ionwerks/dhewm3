@@ -435,12 +435,14 @@ idActor::idActor( void ) {
 	pain_threshold		= 0;
 
 	#if MD5_ENABLE_GIBS > 0
-	damageEffect = NULL;
-	damageEffectCycle = 0;
-	damageEffectStart = 0;
-	damageEffectDeath = false;
-	damageEffectJoint = INVALID_JOINT;
-	damageEffectAngle = mat3_identity;
+	damageEmitSever = NULL;
+	damageEmitSpray = NULL;
+	damageEmitStage = 0;
+	damageEmitStart = 0;
+	damageEmitDeath = 0;
+	damageEmitJoint = jointHandle_t::INVALID_JOINT;
+	damageEmitAngle = mat3_identity;
+	damageEmitShift = vec3_zero;
 	#endif
 
 	state				= NULL;
@@ -537,12 +539,14 @@ void idActor::Spawn( void ) {
 	pain_threshold	= spawnArgs.GetInt( "pain_threshold" );
 
 	#if MD5_ENABLE_GIBS > 0
-	damageEffect = NULL;
-	damageEffectCycle = 0;
-	damageEffectStart = 0;
-	damageEffectDeath = false;
-	damageEffectJoint = INVALID_JOINT;
-	damageEffectAngle = mat3_identity;
+	damageEmitSever = NULL;
+	damageEmitSpray = NULL;
+	damageEmitStage = 0;
+	damageEmitStart = 0;
+	damageEmitDeath = 0;
+	damageEmitJoint = jointHandle_t::INVALID_JOINT;
+	damageEmitAngle = mat3_identity;
+	damageEmitShift = vec3_zero;
 	#endif
 
 	LoadAF();
@@ -817,23 +821,16 @@ void idActor::Save( idSaveGame *savefile ) const {
 	savefile->WriteInt( pain_threshold );
 
 	#if MD5_ENABLE_GIBS > 0
-	savefile->WriteParticle(damageEffect);
-	savefile->WriteInt(damageEffectCycle);
-	savefile->WriteInt(damageEffectStart);
-	savefile->WriteBool(damageEffectDeath);
-	savefile->WriteJoint(damageEffectJoint);
-	savefile->WriteMat3(damageEffectAngle);
-	#endif
-
-	#if MD5_ENABLE_GIBS > 0
 	savefile->WriteInt(damageBonesZone.Num());
 	for (i = 0; i < damageBonesZone.Num(); i++) savefile->WriteInt(damageBonesZone[i]);
 	savefile->WriteInt(damageZonesBone.Num());
 	for (i = 0; i < damageZonesBone.Num(); i++) savefile->WriteInt(damageZonesBone[i]);
-//	savefile->WriteInt(damageZonesTime.Num());
-//	for (i = 0; i < damageZonesTime.Num(); i++) savefile->WriteInt(damageZonesTime[i]);
-	savefile->WriteInt(damageZonesRoll.Num());
-	for (i = 0; i < damageZonesRoll.Num(); i++) savefile->WriteAngles(damageZonesRoll[i]);
+	savefile->WriteInt(damageZonesKill.Num());
+	for (i = 0; i < damageZonesKill.Num(); i++) savefile->WriteInt(damageZonesKill[i]);
+	savefile->WriteInt(damageZonesHeap.Num());
+	for (i = 0; i < damageZonesHeap.Num(); i++) savefile->WriteInt(damageZonesHeap[i]);
+	savefile->WriteInt(damageZonesDrop.Num());
+	for (i = 0; i < damageZonesDrop.Num(); i++) savefile->WriteVec4(damageZonesDrop[i]);
 	savefile->WriteInt(damageZonesRate.Num());
 	for (i = 0; i < damageZonesRate.Num(); i++) savefile->WriteFloat(damageZonesRate[i]);
 	savefile->WriteInt(damageZonesName.Num());
@@ -843,6 +840,17 @@ void idActor::Save( idSaveGame *savefile ) const {
 	for (i = 0; i < damageGroups.Num(); i++) savefile->WriteString(damageGroups[i]);
 	savefile->WriteInt(damageScales.Num());
 	for (i = 0; i < damageScales.Num(); i++) savefile->WriteFloat(damageScales[i]);
+	#endif
+
+	#if MD5_ENABLE_GIBS > 0
+	savefile->WriteParticle(damageEmitSever);
+	savefile->WriteParticle(damageEmitSpray);
+	savefile->WriteInt(damageEmitStage);
+	savefile->WriteInt(damageEmitStart);
+	savefile->WriteInt(damageEmitDeath);
+	savefile->WriteJoint(damageEmitJoint);
+	savefile->WriteMat3(damageEmitAngle);
+	savefile->WriteVec3(damageEmitShift);
 	#endif
 
 	savefile->WriteBool( use_combat_bbox );
@@ -954,23 +962,16 @@ void idActor::Restore( idRestoreGame *savefile ) {
 	savefile->ReadInt( pain_threshold );
 
 	#if MD5_ENABLE_GIBS > 0
-	savefile->ReadParticle(damageEffect);
-	savefile->ReadInt(damageEffectCycle);
-	savefile->ReadInt(damageEffectStart);
-	savefile->ReadBool(damageEffectDeath);
-	savefile->ReadJoint(damageEffectJoint);
-	savefile->ReadMat3(damageEffectAngle);
-	#endif
-
-	#if MD5_ENABLE_GIBS > 0
 	savefile->ReadInt(num); damageBonesZone.SetNum(num);
 	for (i = 0; i < num; i++) savefile->ReadInt(damageBonesZone[i]);
 	savefile->ReadInt(num); damageZonesBone.SetNum(num);
 	for (i = 0; i < num; i++) savefile->ReadInt(damageZonesBone[i]);
-//	savefile->ReadInt(num); damageZonesTime.SetNum(num);
-//	for (i = 0; i < num; i++) savefile->ReadInt(damageZonesTime[i]);
-	savefile->ReadInt(num); damageZonesRoll.SetNum(num);
-	for (i = 0; i < num; i++) savefile->ReadAngles(damageZonesRoll[i]);
+	savefile->ReadInt(num); damageZonesKill.SetNum(num);
+	for (i = 0; i < num; i++) savefile->ReadInt(damageZonesKill[i]);
+	savefile->ReadInt(num); damageZonesHeap.SetNum(num);
+	for (i = 0; i < num; i++) savefile->ReadInt(damageZonesHeap[i]);
+	savefile->ReadInt(num); damageZonesDrop.SetNum(num);
+	for (i = 0; i < num; i++) savefile->ReadVec4(damageZonesDrop[i]);
 	savefile->ReadInt(num); damageZonesRate.SetNum(num);
 	for (i = 0; i < num; i++) savefile->ReadFloat(damageZonesRate[i]);
 	savefile->ReadInt(num); damageZonesName.SetGranularity(1); damageZonesName.SetNum(num);
@@ -980,6 +981,17 @@ void idActor::Restore( idRestoreGame *savefile ) {
 	for (i = 0; i < num; i++) savefile->ReadString(damageGroups[i]);
 	savefile->ReadInt(num); damageScales.SetNum(num);
 	for (i = 0; i < num; i++) savefile->ReadFloat(damageScales[i]);
+	#endif
+
+	#if MD5_ENABLE_GIBS > 0
+	savefile->ReadParticle(damageEmitSever);
+	savefile->ReadParticle(damageEmitSpray);
+	savefile->ReadInt(damageEmitStage);
+	savefile->ReadInt(damageEmitStart);
+	savefile->ReadInt(damageEmitDeath);
+	savefile->ReadJoint(damageEmitJoint);
+	savefile->ReadMat3(damageEmitAngle);
+	savefile->ReadVec3(damageEmitShift);
 	#endif
 
 	savefile->ReadBool( use_combat_bbox );
@@ -1694,10 +1706,10 @@ bool idActor::StartRagdoll( void ) {
 	slomoStart = MS2SEC( gameLocal.time ) + spawnArgs.GetFloat( "ragdoll_slomoStart", "-1.6" );
 	slomoEnd = MS2SEC( gameLocal.time ) + spawnArgs.GetFloat( "ragdoll_slomoEnd", "0.8" );
 
-	#if MD5_ENABLE_GIBS > 0 // KILL See what this looks like!
-	if (damageEffectDeath) {
-		slomoStart = MS2SEC(gameLocal.time) - 3.20f;
-		slomoEnd = MS2SEC(gameLocal.time) + 1.60f;
+	#if MD5_ENABLE_GIBS > 0 // DEATH
+	if (damageEmitDeath && damageEmitDeath < gameLocal.time) {
+		slomoStart += 1.60f;
+		slomoEnd   += 1.60f;
 	}
 	#endif
 
@@ -2111,13 +2123,21 @@ int idActor::GetAnim( int channel, const char *animname ) {
 
 	if ( animPrefix.Length() ) {
 		temp = va( "%s_%s", animPrefix.c_str(), animname );
-		anim = animatorPtr->GetAnim( temp );
+		#if MD5_ENABLE_GIBS > 0 // ANIMS PERMIT
+		anim = animatorPtr->GetAnim(temp, GetRenderEntity()->gibbedZones);
+		#else
+		anim = animatorPtr->GetAnim(temp);
+		#endif
 		if ( anim ) {
 			return anim;
 		}
 	}
 
-	anim = animatorPtr->GetAnim( animname );
+	#if MD5_ENABLE_GIBS > 0 // ANIMS PERMIT
+	anim = animatorPtr->GetAnim(animname, GetRenderEntity()->gibbedZones);
+	#else
+	anim = animatorPtr->GetAnim(animname);
+	#endif
 
 	return anim;
 }
@@ -2266,26 +2286,29 @@ void idActor::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir
 			#if MD5_ENABLE_GIBS > 2 // DEBUG
 			if (gibbedZone) {{{
 			#elif 0 // BASIC
-			if (gibbedZone && damage >= health) {{{
+			if (gibbedZone && damage >= health * (gibbedZone == 2 ? 2 : 1)) {{{ // Require double current health to gib body.
 			#else	// TALLY
-			if (damageZonesTime[0] != gameLocal.time) {
-			//	memset(damageZonesTime.Ptr(), 0, damageZonesTime.MemoryUsed());
-				damageZonesTime[0] = gameLocal.time;
-				for (int i = 1; i < damageZonesTime.Num(); i++) damageZonesTime[i] >>= 1; // Half-damage carry over.
+			if (damageZonesHeap[0] < gameLocal.time) {
+			//	memset(damageZonesHeap.Ptr(), 0, damageZonesHeap.MemoryUsed());
+			//	damageZonesHeap[0] = gameLocal.time + 1000;
+				for (int i = 1; i < damageZonesHeap.Num(); i++) damageZonesHeap[i] >>= 1; // Half-damage carry over.
 			}
+			damageZonesHeap[0] = gameLocal.time + 1000; // MD5_ENABLE_GIBS // TODO I think this should always be revised?
 			if (gibbedZone) {
-				damageZonesTime[gibbedZone] += damage;
-				if (damageZonesTime[gibbedZone] >= 25) {
-					if (gibbedZone >= 3 || damageZonesTime[gibbedZone] >= 50) { // BODY/HEAD (assume HEAD takes 2x).
+				damageZonesHeap[gibbedZone] += damage;
+				if (damageZonesHeap[gibbedZone] >= 25) {
+					if (gibbedZone >= 3 || damageZonesHeap[gibbedZone] >= 50) { // BODY/HEAD (assume HEAD takes 2x).
 			#endif
 						renderEntity_t* gibbedBody = &renderEntity;
 						renderEntity_t* gibbedHead = head.GetEntity() ? head.GetEntity()->GetRenderEntity() : NULL;
 						gibbedFlag |= (1 << gibbedZone);
 						if (gibbedBody) gibbedPart |= (gibbedBody->hModel->gibParts & gibbedFlag);
 						if (gibbedHead) gibbedPart |= (gibbedHead->hModel->gibParts & gibbedFlag);
-						if (gibbedBody) Sever(gibbedBody, gibbedPart);
-						if (gibbedHead) Sever(gibbedHead, gibbedPart);
-						if (gibbedPart) health += damage;
+						if (gibbedPart) {
+							if (gibbedBody) Sever(gibbedBody, gibbedPart);
+							if (gibbedHead) Sever(gibbedHead, gibbedPart);
+							if (gibbedPart) health += damage;
+						}
 					}
 				}
 			}
@@ -2296,15 +2319,18 @@ void idActor::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir
 			if ( health < -999 ) {
 				health = -999;
 			}
+			#if MD5_ENABLE_GIBS > 0
+			renderEntity.gibbedZones |= 0x0001;
+			#endif
 			Killed( inflictor, attacker, damage, dir, location );
 			if ( ( health < -20 ) && spawnArgs.GetBool( "gib" ) && damageDef->GetBool( "gib" ) ) {
 				Gib( dir, damageDefName );
 			}
 		} else {
-			Pain( inflictor, attacker, damage, dir, location );
 			#if MD5_ENABLE_GIBS > 0
-			if (gibbedPart & 0xF000) Bleed(gibbedPart, location);
+			if (gibbedPart & 0xF000) Bleed(gibbedPart, damageBonesZone[location]);
 			#endif
+			Pain( inflictor, attacker, damage, dir, location );
 		}
 	} else {
 		// don't accumulate knockback
@@ -2419,87 +2445,102 @@ void idActor::Sever(renderEntity_t* entity, int& zone) {
 
 	if /*el*/ (entity->gibbedZones      & zone) { // Formerly gibbed.
 		zone  = 0x0000;
-	} else if (entity->gibbedZones & MD5_GIBBED_BODY) { // Truncated.
-		zone  = 0x0000;
 	} else if (entity->hModel->gibBleed & zone) { // Zone will bleed.
 		zone |= 0x1000;
-	} else if (entity->hModel->gibSmoke & zone) { // Zone will flame.
+	} else if (entity->hModel->gibFlame & zone) { // Zone will flame.
 		zone |= 0x2000;
 	} else if (entity->hModel->gibSpark & zone) { // Zone will spark.
 		zone |= 0x3000;
 	}
 
-	entity->gibbedZones |= zone;
+	if (zone) entity->gibbedZones |= zone & 0x0FFE;
 
 }
 
 /* =====================
 idActor::Bleed
 ===================== */
-void idActor::Bleed(int gibbedPart, int location) {
+void idActor::Bleed(int gibbedPart, int gibbedZone) {
 
-	const char* const bodySever[] = {"body_burst", "body_burst", "body_burst"};
+	const char* const bodySever[] = {"body_burst", "body_shock", "body_blaze"};
+	const char* const bodySpray[] = {"body_bleed", "body_spark", "body_smoke"};
+	const char* const headSever[] = {"head_burst", "head_shock", "head_blaze"};
+	const char* const headSpray[] = {"head_bleed", "head_spark", "head_smoke"};
+	const char* const limbSever[] = {"limb_burst", "limb_shock", "limb_blaze"};
+	const char* const limbSpray[] = {"limb_bleed", "limb_spark", "limb_smoke"};
 
-	const char* const headSever[] = {"head_burst", "head_burst", "head_burst"}; // {"head_burst", "head_shock", "head_blaze"}
-	const char* const headSpray[] = {"head_bleed", "head_bleed", "head_bleed"}; // {"head_bleed", "head_spark", "head_smoke"}
-
-	const char* const limbSever[] = {"limb_burst", "limb_burst", "limb_burst"}; // {"limb_burst", "limb_shock", "limb_blaze"}
-	const char* const limbSpray[] = {"limb_bleed", "limb_bleed", "limb_bleed"}; // {"limb_bleed", "limb_spark", "limb_smoke"}
-
-	if (location > INVALID_JOINT) { // New gibbed zone.
-		if /*el*/ (gibbedPart & MD5_GIBBED_BODY) { // BODY
-			damageEffectAngle = damageZonesRoll[damageBonesZone[location]].ToMat3();
-			damageEffectJoint = (jointHandle_t)damageZonesBone[damageBonesZone[location]];
-			damageEffectStart = gameLocal.time ? gameLocal.time : 1;
-			damageEffectCycle = 0;
-			damageEffect = static_cast<const idDeclParticle*>(declManager->FindType(DECL_PARTICLE, bodySever[(gibbedPart >> 12) - 1]));
-		} else if (gibbedPart & MD5_GIBBED_HEAD) { // HEAD
-			damageEffectAngle = damageZonesRoll[damageBonesZone[location]].ToMat3();
-			damageEffectJoint = (jointHandle_t)damageZonesBone[damageBonesZone[location]];
-			damageEffectStart = gameLocal.time ? gameLocal.time : 1;
-			damageEffectCycle = +gibbedPart;
-			damageEffect = static_cast<const idDeclParticle*>(declManager->FindType(DECL_PARTICLE, headSever[(gibbedPart >> 12) - 1]));
-		} else if (gibbedPart && damageEffectCycle <= 0) { // LIMB and not already bleeding from the head.
-			damageEffectAngle = damageZonesRoll[damageBonesZone[location]].ToMat3();
-			damageEffectJoint = (jointHandle_t)damageZonesBone[damageBonesZone[location]];
-			damageEffectStart = gameLocal.time ? gameLocal.time : 1;
-			damageEffectCycle = -gibbedPart;
-			damageEffect = static_cast<const idDeclParticle*>(declManager->FindType(DECL_PARTICLE, limbSever[(gibbedPart >> 12) - 1]));
-		}
+	if (gibbedPart && gibbedZone) { // New gib.
+		if /*el*/ ((gibbedPart & MD5_GIBBED_BODY) != 0) { // BODY
+			damageEmitShift = idVec3(0.00f, damageZonesDrop[gibbedZone][3], 0.00f);
+			damageEmitAngle = idAngles(damageZonesDrop[gibbedZone].ToVec3()).ToMat3();
+			damageEmitJoint = jointHandle_t(damageZonesBone[gibbedZone]);
+			damageEmitStart = gameLocal.time;
+			damageEmitStage = gibbedPart; gibbedPart >>= 12; gibbedPart--;
+			damageEmitSpray = static_cast<const idDeclParticle*>(declManager->FindType(DECL_PARTICLE, bodySpray[gibbedPart]));
+			damageEmitSever = static_cast<const idDeclParticle*>(declManager->FindType(DECL_PARTICLE, bodySever[gibbedPart]));
+			if (damageZonesKill[gibbedZone] && (damageEmitDeath == 0 || damageEmitDeath > gameLocal.time + damageZonesKill[gibbedZone])) {
+				damageEmitDeath = gameLocal.time + damageZonesKill[gibbedZone];
+			}
+		} else if ((gibbedPart & MD5_GIBBED_HEAD) != 0 && (renderEntity.gibbedZones & MD5_GIBBED_BODY) == 0) { // HEAD & not already truncated.
+			damageEmitShift = idVec3(0.00f, damageZonesDrop[gibbedZone][3], 0.00f);
+			damageEmitAngle = idAngles(damageZonesDrop[gibbedZone].ToVec3()).ToMat3();
+			damageEmitJoint = jointHandle_t(damageZonesBone[gibbedZone]);
+			damageEmitStart = gameLocal.time;
+			damageEmitStage = gibbedPart; gibbedPart >>= 12; gibbedPart--;
+		//	const idDecl* d_spray = declManager->FindType(DECL_PARTICLE, va("%s_%s", headSpray[gibbedPart], spawnArgs.GetString("classname")), false);
+		//	if (!d_spray) d_spray = declManager->FindType(DECL_PARTICLE,             headSpray[gibbedPart],                                    false);
+		//	damageEmitSpray = static_cast<const idDeclParticle*>(d_spray);
+			damageEmitSpray = static_cast<const idDeclParticle*>(declManager->FindType(DECL_PARTICLE, headSpray[gibbedPart]));
+		//	const idDecl* d_sever = declManager->FindType(DECL_PARTICLE, va("%s_%s", headSever[gibbedPart], spawnArgs.GetString("classname")), false);
+		//	if (!d_sever) d_sever = declManager->FindType(DECL_PARTICLE,             headSever[gibbedPart],                                    false);
+		//	damageEmitSpray = static_cast<const idDeclParticle*>(d_sever);
+			damageEmitSever = static_cast<const idDeclParticle*>(declManager->FindType(DECL_PARTICLE, headSever[gibbedPart]));
+			if (damageZonesKill[gibbedZone] && (damageEmitDeath == 0 || damageEmitDeath > gameLocal.time + damageZonesKill[gibbedZone])) {
+				damageEmitDeath = gameLocal.time + damageZonesKill[gibbedZone];
+			}
+		} else if ((renderEntity.gibbedZones & MD5_GIBBED_CORE) == 0 && (damageEmitStage == 0 || damageEmitStage > (gibbedPart & 0x0FFF))) { // LIMB & not already truncated or decapitated & lower index than prior gibs this frame.
+			damageEmitShift = idVec3(0.00f, damageZonesDrop[gibbedZone][3], 0.00f);
+			damageEmitAngle = idAngles(damageZonesDrop[gibbedZone].ToVec3()).ToMat3();
+			damageEmitJoint = jointHandle_t(damageZonesBone[gibbedZone]);
+			damageEmitStart = gameLocal.time;
+			damageEmitStage = gibbedPart; gibbedPart >>= 12; gibbedPart--;
+			damageEmitSpray = static_cast<const idDeclParticle*>(declManager->FindType(DECL_PARTICLE, limbSpray[gibbedPart]));
+			damageEmitSever = static_cast<const idDeclParticle*>(declManager->FindType(DECL_PARTICLE, limbSever[gibbedPart]));
+			if (damageZonesKill[gibbedZone] && (damageEmitDeath == 0 || damageEmitDeath > gameLocal.time + damageZonesKill[gibbedZone])) {
+				damageEmitDeath = gameLocal.time + damageZonesKill[gibbedZone];
+			}
+		} else return; // Don't want multiple gibs in the same frame to prematurely run down the cycle value.
 	}
 
-	if (damageEffect && damageEffectStart && damageEffectJoint > INVALID_JOINT) {
+	if (damageEmitStart && damageEmitJoint > INVALID_JOINT && damageEmitSever) {
 		idVec3 emitOrigin;
 		idMat3 emitMatrix;
-		animator.GetJointTransform(damageEffectJoint, gameLocal.time, emitOrigin, emitMatrix);
-		emitOrigin = emitOrigin * renderEntity.axis + renderEntity.origin;
-		emitMatrix = emitMatrix * renderEntity.axis;
-		emitMatrix = damageEffectAngle * emitMatrix;
-		if (damageEffectCycle < -1) emitOrigin += idVec3(0.00f, 8.00f, 0.00f) * emitMatrix; else
-		if (damageEffectCycle <  0) emitOrigin += idVec3(0.00f, 4.00f, 0.00f) * emitMatrix;
+		animator.GetJointTransform(damageEmitJoint, gameLocal.time, emitOrigin, emitMatrix);
+		emitOrigin  = emitOrigin * renderEntity.axis + renderEntity.origin;
+		emitMatrix  = emitMatrix * renderEntity.axis;
+		emitMatrix  = damageEmitAngle * emitMatrix;
+		emitOrigin += damageEmitShift * emitMatrix;
 		#if MD5_ENABLE_GIBS > 2 // DEBUG
 		gameRenderWorld->DebugLine(colorCyan, emitOrigin, idVec3(0.00f, 12.00f, 0.00f) * emitMatrix + emitOrigin, gameLocal.msec);
 		#endif
 		#ifdef _D3XP
 		SetTimeState ts(timeGroup);
-		if (!gameLocal.smokeParticles->EmitSmoke(damageEffect, damageEffectStart, gameLocal.random.RandomFloat(), emitOrigin, emitMatrix, timeGroup)) {
+		if (gameLocal.smokeParticles->EmitSmoke(damageEmitSever, damageEmitStart, gameLocal.random.RandomFloat(), emitOrigin, emitMatrix, timeGroup) != true) {
 		#else
-		if (!gameLocal.smokeParticles->EmitSmoke(damageEffect, damageEffectStart, gameLocal.random.RandomFloat(), emitOrigin, emitMatrix           )) {
+		if (gameLocal.smokeParticles->EmitSmoke(damageEmitSever, damageEmitStart, gameLocal.random.RandomFloat(), emitOrigin, emitMatrix           ) != true) {
 		#endif
-			if /*el*/ (damageEffectCycle < -1) {
-				damageEffect = static_cast<const idDeclParticle*>(declManager->FindType(DECL_PARTICLE, limbSpray[(-damageEffectCycle >> 12) - 1]));
-				damageEffectStart = gameLocal.time;
-				damageEffectCycle = -1;
-			} else if (damageEffectCycle > +1) {
-				damageEffect = static_cast<const idDeclParticle*>(declManager->FindType(DECL_PARTICLE, headSpray[(+damageEffectCycle >> 12) - 1]));
-				damageEffectStart = gameLocal.time;
-				damageEffectCycle = +1;
-			} else if (damageEffectCycle == 0) {
-				damageEffectDeath = true;
-				damageEffectStart = 0;
-				Damage(this, this, vec3_origin, "damage_suicide", 1.00f, INVALID_JOINT); // TODO: Kill! See also; ragdoll_slomoStart, ragdoll_slomoeND
+			if /*el*/ (damageEmitDeath && damageEmitDeath < gameLocal.time) {
+				damageEmitStart = 0;
+				damageEmitSever = NULL;
+				Damage(this, this, GetPhysics()->GetGravityNormal() * 0.10f, "damage_suicide", 1.00f, INVALID_JOINT);
+			} else if (damageEmitStage & 0x3000) {
+				damageEmitStart = gameLocal.time;
+				damageEmitSever = damageEmitSpray;
+				damageEmitStage = 0x0FFF & damageEmitStage;
 			} else {
-				damageEffectStart = gameLocal.time;
+				damageEmitStart = gameLocal.time;
+			//	damageEmitSever = damageEmitSpray;
+				damageEmitStage = 0x0000;
 			}
 		}
 	}
@@ -2540,8 +2581,9 @@ void idActor::SetupDamageGroups( void ) {
 	int zoneCount = 1; arg = spawnArgs.MatchPrefix("damage_zone ", NULL);
 	while (arg) { zoneCount++; arg = spawnArgs.MatchPrefix("damage_zone ", arg); }
 	damageZonesBone.SetNum(zoneCount); damageZonesBone[0] = INVALID_JOINT;
-	damageZonesTime.SetNum(zoneCount); damageZonesTime[0] = 0;
-	damageZonesRoll.SetNum(zoneCount); damageZonesRoll[0] = ang_zero;
+	damageZonesKill.SetNum(zoneCount); damageZonesKill[0] = 0;
+	damageZonesHeap.SetNum(zoneCount); damageZonesHeap[0] = 0;
+	damageZonesDrop.SetNum(zoneCount); damageZonesDrop[0] = vec4_zero;
 	damageZonesRate.SetNum(zoneCount); damageZonesRate[0] = 1.00f;
 	damageZonesName.SetNum(zoneCount); damageZonesName[0] = "";
 	int zoneIndex = 1; arg = spawnArgs.MatchPrefix("damage_zone ", NULL);
@@ -2558,8 +2600,9 @@ void idActor::SetupDamageGroups( void ) {
 			if (boneIndex < 0) boneIndex = jointList[i];
 		}
 		damageZonesBone[zoneIndex] = boneIndex;
-		damageZonesTime[zoneIndex] = 0;
-		damageZonesRoll[zoneIndex] = zoneIndex == 1 ? idAngles(0.00f, 0.00f, -82.50f) : ang_zero;
+		damageZonesKill[zoneIndex] = zoneIndex == 1 ? 30000 : zoneIndex == 2 ? 7500 : 0;
+		damageZonesHeap[zoneIndex] = 0;
+		damageZonesDrop[zoneIndex] = zoneIndex == 1 ? idVec4(0.00f, 0.00f, -82.50f, 0.00f) : idVec4(0.00f, 0.00f, 0.00f, 4.00f);
 		damageZonesRate[zoneIndex] = 1.00f;
 		damageZonesName[zoneIndex] = groupname;
 		jointList.Clear();
@@ -2582,24 +2625,34 @@ void idActor::SetupDamageGroups( void ) {
 	#endif
 
 	#if MD5_ENABLE_GIBS > 0
-	arg = spawnArgs.MatchPrefix("damage_angle ", NULL);
+	arg = spawnArgs.MatchPrefix("damage_spurt ", NULL);
 	while (arg) {
 		groupname = arg->GetKey();
-		groupname.Strip("damage_angle ");
-		for (i = 0; i < damageZonesName.Num(); i++) {
-			if (damageZonesName[i] == groupname) {
-				sscanf(arg->GetValue().c_str(), "%f %f %f", &damageZonesRoll[i][0], &damageZonesRoll[i][1], &damageZonesRoll[i][2]);
+		groupname.Strip("damage_spurt ");
+		if (isdigit(groupname.c_str()[0]) && (i = groupname.c_str()[0] - 47) < damageZonesName.Num()) { // 1-based index.
+			#pragma warning(suppress:6031)
+			sscanf(arg->GetValue().c_str(), "%f %f %f %f", &damageZonesDrop[i][0], &damageZonesDrop[i][1], &damageZonesDrop[i][2], &damageZonesDrop[i][3]);
+		} else {
+			for (i = 1; i < damageZonesName.Num(); i++) {
+				if (damageZonesName[i] == groupname) {
+					#pragma warning(suppress:6031)
+					sscanf(arg->GetValue().c_str(), "%f %f %f %f", &damageZonesDrop[i][0], &damageZonesDrop[i][1], &damageZonesDrop[i][2], &damageZonesDrop[i][3]);
+				}
 			}
 		}
-		arg = spawnArgs.MatchPrefix("damage_angle ", arg);
+		arg = spawnArgs.MatchPrefix("damage_spurt ", arg);
 	}
 	arg = spawnArgs.MatchPrefix("damage_scale ", NULL);
 	while (arg) {
 		groupname = arg->GetKey();
 		groupname.Strip("damage_scale ");
-		for (i = 0; i < damageZonesName.Num(); i++) {
-			if (damageZonesName[i] == groupname) {
-				damageZonesRate[i] = atof(arg->GetValue());
+		if (isdigit(groupname.c_str()[0]) && (i = groupname.c_str()[0] - 47) < damageZonesName.Num()) { // 1-based index.
+			damageZonesRate[i] = atof(arg->GetValue());
+		} else {
+			for (i = 1; i < damageZonesName.Num(); i++) {
+				if (damageZonesName[i] == groupname) {
+					damageZonesRate[i] = atof(arg->GetValue());
+				}
 			}
 		}
 		arg = spawnArgs.MatchPrefix("damage_scale ", arg);

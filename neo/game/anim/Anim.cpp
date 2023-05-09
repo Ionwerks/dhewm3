@@ -206,7 +206,7 @@ bool idMD5Anim::LoadBinary(const char* filename, const char* baseFolder) {
 
 	file->ReadUnsignedInt(number); SWAP_WHOLE(number);
 
-	if (number != B_ANIM_MD5_MAGIC) { // 42 4D 44 65
+	if (number != B_ANIM_MD5_MAGIC) {
 		idLib::fileSystem->CloseFile(file);
 		return false;
 	}
@@ -214,7 +214,7 @@ bool idMD5Anim::LoadBinary(const char* filename, const char* baseFolder) {
 	Free(); name = filename;
 
 	#if MD5_ENABLE_GIBS > 0 && MD5_BINARY_ANIM < 2
-	file->ReadUnsignedInt(number); gibbedLimit = number;
+	file->ReadUnsignedInt(number); gibLimit = number << 1;
 	file->ReadUnsignedInt(number);
 	#else
 	file->ReadUnsignedInt(number); // ID_TIME_T 1/2
@@ -329,7 +329,7 @@ bool idMD5Anim::LoadBinary(const char* filename, const char* baseFolder) {
 /* ====================
 idMD5Anim::ZoneParse
 ==================== */
-int idMD5Anim::ZoneParse(const char* zone) { // , int& step) {
+int idMD5Anim::ZoneParse(const char* zone, int& step) {
 
 	int bits = 0;
 
@@ -337,27 +337,49 @@ int idMD5Anim::ZoneParse(const char* zone) { // , int& step) {
 		if (zone[0] == '0' && zone[1] == 'x') {
 			char* next = NULL;
 			bits = strtol(&zone[2], &next, 16) << 1;
-		//	step += next - zone;
+			step += next - zone;
 		} else if (strchr(zone, ',')) {
 			char* copy = strdup(zone);
 			char* part = NULL;
 			char* rest = NULL;
 			char* next = NULL;
 			for (part = strtok_s(copy, ",", &rest); part && isdigit(part[0]); part = strtok_s(NULL, ",", &rest)) {
-				bits |= 1 << (1 + strtol(part, &next, 10));
+				bits |= 1 << (strtol(part, &next, 10) + 1);
 			}
-		//	step += next - copy;
 			free(copy);
+			step += next - copy;
 		} else {
 			int index = (zone[1] != '-' || zone[2] <= zone[0] || !isdigit(zone[2]) ? 0 : 2);
-			int start = (zone[0] - 47);
+			int start = (zone[0]     - 47); // 1-based index (0-bit is 'unassigned').
 			int until = (zone[index] - 47);
 			for (; start <= until; start++) bits |= (1 << start);
-		//	step += 1 + index;
+			step += index + 1;
 		}
 	}
 
 	return bits;
+
+}
+
+/* ====================
+idMD5Anim::ParseZone
+==================== */
+void idMD5Anim::ParseZone(const char* zone) {
+
+	int step = 0;
+
+	if (zone) {
+		gibLimit  = ZoneParse(&zone[step], step);
+	}
+
+//	if (step && zone[step] == ';') { step++;
+//		gibOther  = ZoneParse(&zone[step], step);
+//	}
+
+	if (step && zone[step]) {
+	//	gibLimit |= (zone[step] == '!' ? 0x3000 : zone[step] == '?' ? 0x2000 : zone[step] == ':' ? 0x1000 : 0x0000);
+		gibLimit |= (zone[step] == '!' ? MD5_IS_FALLBACK : 0x0000);
+	}
 
 }
 
@@ -396,7 +418,7 @@ bool idMD5Anim::LoadAnim( const char *filename ) {
 	#if MD5_ENABLE_GIBS > 0 // ANIMS
 	idStr versionComment; parser.ReadRestOfLine(versionComment);
 	int uses = idStr::FindText(versionComment.c_str(), "USES:") + 5;
-	if (uses >= 5) gibbedLimit = ZoneParse(&versionComment.c_str()[uses]); // , uses);
+	if (uses >= 5) ParseZone(&versionComment.c_str()[uses]);
 	#endif
 
 	// skip the commandline

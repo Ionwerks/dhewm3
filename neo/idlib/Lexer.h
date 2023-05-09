@@ -185,12 +185,6 @@ public:
 					// read a token only if on the same line
 	int				ReadTokenOnLine( idToken *token );
 
-//	#if MD5_BINARY_MESH > 2 // WRITE+
-	const char*		GetCommence() { return buffer; }
-	const char*		GetPosition() { return script_p; }
-	const char*		GetConclude() { return end_p; }
-//	#endif
-
 					//Returns the rest of the current line
 	const char*		ReadRestOfLine(idStr& out);
 
@@ -248,6 +242,12 @@ public:
 
 					// set the base folder to load files from
 	static void		SetBaseFolder( const char *path );
+
+	#if MD5_BINARY_MESH > 2 || 1 // WRITE+
+	const char*		GetCommence() { return buffer; }
+	const char*		GetPosition() { return script_p; }
+	const char*		GetConclude() { return end_p; }
+	#endif
 
 	#if MD5_BINARY_ANIM > 0 || 1
 	static const char* GetBaseFolder( void );

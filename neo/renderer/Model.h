@@ -46,25 +46,29 @@ If you have questions concerning this license or the applicable additional terms
 #define MD5_ANIM_EXT			"md5anim"
 #define MD5_CAMERA_EXT			"md5camera"
 #define MD5_VERSION				10
+
 #define MD5_ENABLE_LODS			3 // 0=Disable, 1=Enable, 2=1+ai_showLevelOfDetail, 3=2+r_testUnsmoothedTangents
-#define MD5_ENABLE_GIBS			2 // 0=Disable, 1=Enable, 2=Enable+NoDraw 3=Enable+NoDraw+Debug
+#define MD5_ENABLE_GIBS			3 // 0=Disable, 1=Enable, 2=Enable+NoDraw 3=Enable+NoDraw+Debug
 #define MD5_GIBBED_HEAD			2
 #define MD5_GIBBED_BODY			4
+#define MD5_GIBBED_CORE			6 // MD5_GIBBED_BODY | MD5_GIBBED_HEAD
+#define MD5_OR_HEADLESS			0x1000
+#define MD5_IS_FALLBACK			0x2000
 #define MD5_BINARY_MESH			4 // 0=Disable, 1=Enable, 2=1+binaryExport, 3=1+binaryExport+Text, 4=1+binaryExport+Text+Save
 #define MD5_BINARY_ANIM			1 // 0=Disable, 1=Enable, 2=Enable-bigEndian
 #define IMG_ENABLE_PNGS			1 // 0=Disable, 1=Enable
 
 /* ===================================================================================================
 MD5_ENABLE_GIBS: TODO
-default			  1
+default				  1
 cyberdemon	1.00	150
-sabaoth			 50
+sabaoth				 50
 vagary		2.00
 archvile	2.00
 cherub		1.25
 bruiser		2.00
 hellknight	2.00	 25
-imp		2.00
+imp			2.00
 imp_crawler	1.25
 maggot		1.50
 mancubus	1.50	 16
@@ -88,7 +92,7 @@ morgue		1.25
 sawyer		2.00
 zsec_pistol	1.25
 zsec_shield	1.25
-?		1.25
+?			1.25
 =================================================================================================== */
 
 /* ===================================================================================================
@@ -342,7 +346,7 @@ public:
 	virtual int					Memory() const = 0;
 
 	// for reloadModels
-	virtual ID_TIME_T				Timestamp() const = 0;
+	virtual ID_TIME_T			Timestamp() const = 0;
 
 	// returns the number of surfaces
 	virtual int					NumSurfaces() const = 0;
@@ -420,20 +424,20 @@ public:
 	virtual void				WriteToDemoFile( class idDemoFile *f ) = 0;
 
 	#if MD5_ENABLE_GIBS > 0
-	int   gibParts;
-	int   gibBleed;
-	int   gibSmoke;
-	int   gibSpark;
+	int   gibParts = 0;
+	int   gibBleed = 0;
+	int   gibFlame = 0;
+	int   gibSpark = 0;
 	#endif
 
 	#if MD5_ENABLE_LODS > 1 // DEBUG
-	int   lodFrame;
-	int   lodIndex;
-	int   lodCount;
-	int   lodCalls;
-	int   lodFaces;
-	int   lodLevel;
-	float lodRange;
+	int   lodFrame = 0;
+	int   lodIndex = 0;
+	int   lodCount = 0;
+	int   lodCalls = 0;
+	int   lodFaces = 0;
+	int   lodLevel = 0;
+	float lodRange = 0;
 	#endif
 
 };

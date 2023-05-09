@@ -1065,8 +1065,8 @@ void idAI::Think( void ) {
 
 		current_yaw += deltaViewAngles.yaw;
 		ideal_yaw = idMath::AngleNormalize180( ideal_yaw + deltaViewAngles.yaw );
-		#if MD5_ENABLE_GIBS > 0 && 0 // TURN // BASE
-		if (renderEntity.gibbedZones & (MD5_GIBBED_HEAD | MD5_GIBBED_BODY)) {
+		#if MD5_ENABLE_GIBS > 0 && 0 // MOVES // BASE
+		if (renderEntity.gibbedZones & MD5_GIBBED_CORE) {
 			ideal_yaw = idMath::AngleNormalize180(ideal_yaw + ((gameLocal.realClientTime / 1000) % 180) - 90);
 		}
 		#endif
@@ -1153,7 +1153,7 @@ void idAI::Think( void ) {
 */
 
 	#if MD5_ENABLE_GIBS > 0
-	Bleed(renderEntity.gibbedZones);
+	Bleed();
 	#endif
 
 	UpdateMuzzleFlash();
@@ -1165,11 +1165,11 @@ void idAI::Think( void ) {
 
 	#if MD5_ENABLE_LODS > 1 // DEBUG
 	if (ai_showLevelOfDetail.GetBool()) {
-		idRenderModel* model = this->GetRenderEntity()->hModel;
-		if (model->lodIndex == this->entityNumber) {
+		idRenderModel* model = GetRenderEntity()->hModel;
+		if (entityNumber == model->lodIndex) {
 			#if MD5_ENABLE_GIBS > 2 // DEBUG
 			int   zones = model->gibParts;
-			int   sever = this->GetRenderEntity()->gibbedZones;
+			int   sever = GetRenderEntity()->gibbedZones;
 			#endif
 			int   calls = model->lodCalls;
 			int   faces = model->lodFaces;
@@ -1193,7 +1193,7 @@ void idAI::Think( void ) {
 					gameRenderWorld->DrawText(va("%f",      range       ), this->GetEyePosition() + aboveHead, 0.2500f, colorWhite, gameLocal.GetLocalPlayer()->viewAngles.ToMat3());
 					#endif
 				} else if (ai_showLevelOfDetail.GetInteger() > 1) {
-					gameRenderWorld->DrawText(va("%d / %d", faces, level), this->GetEyePosition() + aboveHead, 0.2500f, colorWhite, gameLocal.GetLocalPlayer()->viewAngles.ToMat3());
+					gameRenderWorld->DrawText(va("%d / %x", faces, level), this->GetEyePosition() + aboveHead, 0.2500f, colorWhite, gameLocal.GetLocalPlayer()->viewAngles.ToMat3());
 				} else {
 					gameRenderWorld->DrawText(va("%d / %d", faces, calls), this->GetEyePosition() + aboveHead, 0.2500f, colorWhite, gameLocal.GetLocalPlayer()->viewAngles.ToMat3());
 				}
@@ -2433,8 +2433,8 @@ void idAI::Turn( void ) {
 	if ( animflags.ai_no_turn ) {
 		return;
 	}
-	#if MD5_ENABLE_GIBS > 0 // TURN
-	if (renderEntity.gibbedZones & (MD5_GIBBED_HEAD | MD5_GIBBED_BODY)) {
+	#if MD5_ENABLE_GIBS > 0 // MOVES
+	if (renderEntity.gibbedZones & MD5_GIBBED_CORE) {
 		static idVec3 old_pos = renderEntity.origin;
 		if ((old_pos - renderEntity.origin).LengthFast() > 0.50f) {
 			 old_pos = renderEntity.origin; return;
@@ -2520,8 +2520,8 @@ idAI::TurnToward
 */
 bool idAI::TurnToward( float yaw ) {
 	ideal_yaw = idMath::AngleNormalize180( yaw );
-	#if MD5_ENABLE_GIBS > 0 && 0 // TURN // BASE
-	if (renderEntity.gibbedZones & (MD5_GIBBED_HEAD | MD5_GIBBED_BODY)) {
+	#if MD5_ENABLE_GIBS > 0 && 0 // MOVES // BASE
+	if (renderEntity.gibbedZones & MD5_GIBBED_CORE) {
 		ideal_yaw = idMath::AngleNormalize180(ideal_yaw + ((gameLocal.realClientTime / 1000) % 180) - 90);
 	}
 	#endif
@@ -2545,8 +2545,8 @@ bool idAI::TurnToward( const idVec3 &pos ) {
 	lengthSqr = local_dir.LengthSqr();
 	if ( lengthSqr > Square( 2.0f ) || ( lengthSqr > Square( 0.1f ) && enemy.GetEntity() == NULL ) ) {
 		ideal_yaw = idMath::AngleNormalize180( local_dir.ToYaw() );
-		#if MD5_ENABLE_GIBS > 0 && 0 // TURN // BASE
-		if (renderEntity.gibbedZones & (MD5_GIBBED_HEAD | MD5_GIBBED_BODY)) {
+		#if MD5_ENABLE_GIBS > 0 && 0 // MOVES // BASE
+		if (renderEntity.gibbedZones & MD5_GIBBED_CORE) {
 			ideal_yaw = idMath::AngleNormalize180(ideal_yaw + ((gameLocal.realClientTime / 1000) % 180) - 90);
 		}
 		#endif
@@ -4240,8 +4240,8 @@ idProjectile *idAI::LaunchProjectile( const char *jointname, idEntity *target, b
 
 	axis = ang.ToMat3();
 
-	#if MD5_ENABLE_GIBS > 0 // FIRE // BASE
-	if (renderEntity.gibbedZones & (MD5_GIBBED_HEAD | MD5_GIBBED_BODY)) {
+	#if MD5_ENABLE_GIBS > 0 // MOVES // BASE
+	if (renderEntity.gibbedZones & MD5_GIBBED_CORE) {
 		axis = viewAxis;
 	}
 	#endif
@@ -4405,8 +4405,8 @@ bool idAI::AttackMelee( const char *meleeDefName ) {
 	const char *p;
 	const idSoundShader *shader;
 
-	#if MD5_ENABLE_GIBS > 0 // ANIMS
-	if (meleeDefName[0] == 0) return false; // TODO: Possibly we should create a null-damage type?
+	#if MD5_ENABLE_GIBS > 0 // ANIMS DAMAGE
+	if (meleeDefName[0] == 0) return false; // MD5_ENABLE_GIBS // TODO Possibly we should create a null-damage type?
 	#endif
 
 	meleeDef = gameLocal.FindEntityDefDict( meleeDefName, false );

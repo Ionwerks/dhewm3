@@ -227,7 +227,7 @@ void idRenderWorldLocal::UpdateEntityDef( qhandle_t entityHandle, const renderEn
 	idRenderEntityLocal	*def = entityDefs[entityHandle];
 	if ( def ) {
 
-		if ( !re->forceUpdate ) {
+		if (re->forceUpdate != true) {
 
 			// check for exact match (OPTIMIZE: check through pointers more)
 			if ( !re->joints && !re->callbackData && !def->dynamicModel && !memcmp( re, &def->parms, sizeof( *re ) ) ) {
@@ -2157,7 +2157,7 @@ R_RemapShaderBySkin
 #if MD5_ENABLE_GIBS > 1 // SKINS
 const idMaterial* R_RemapShaderBySkin(const idMaterial* shader, const idDeclSkin* skin, const idMaterial* customShader, const idRenderModel* model) {
 #else
-const idMaterial *R_RemapShaderBySkin(const idMaterial *shader, const idDeclSkin *skin, const idMaterial *customShader) {
+const idMaterial *R_RemapShaderBySkin(const idMaterial* shader, const idDeclSkin* skin, const idMaterial* customShader) {
 #endif
 
 	if ( !shader ) {
@@ -2168,10 +2168,6 @@ const idMaterial *R_RemapShaderBySkin(const idMaterial *shader, const idDeclSkin
 	if ( !shader->IsDrawn() ) {
 		return shader;
 	}
-
-	#if MD5_ENABLE_GIBS > 1 // SKINS
-	if (model && model->gibParts) return shader;
-	#endif
 
 	if ( customShader ) {
 		// this is sort of a hack, but cause deformed surfaces to map to empty surfaces,
@@ -2185,6 +2181,15 @@ const idMaterial *R_RemapShaderBySkin(const idMaterial *shader, const idDeclSkin
 	if ( !skin || !shader ) {
 		return const_cast<idMaterial *>(shader);
 	}
+	
+	#if MD5_ENABLE_GIBS > 1 // SKINS
+	if (model == NULL || model->gibParts == 0) {
+		return skin->RemapShaderBySkin(shader);
+	} else { const idMaterial* result = skin->RemapShaderBySkin(shader);
+		return result->IsDrawn() ? result : shader;
+	}
+	#else
+	return skin->RemapShaderBySkin(shader);
+	#endif
 
-	return skin->RemapShaderBySkin( shader );
 }
