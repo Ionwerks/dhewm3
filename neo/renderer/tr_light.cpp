@@ -1158,12 +1158,6 @@ idRenderModel *R_EntityDefDynamicModel( idRenderEntityLocal *def ) {
 					common->Printf( "entity %i dynamic model exceeded reference bounds\n", def->index );
 				}
 			}
-		/*	#if MD5_ENABLE_GIBS > 0
-			def->cachedDynamicModel->gibParts = def->parms.hModel->gibParts;
-		//	def->cachedDynamicModel->gibBleed = def->parms.hModel->gibBleed;
-		//	def->cachedDynamicModel->gibFlame = def->parms.hModel->gibFlame;
-		//	def->cachedDynamicModel->gibSpark = def->parms.hModel->gibSpark;
-			#endif */
 		}
 
 		def->dynamicModel = def->cachedDynamicModel;

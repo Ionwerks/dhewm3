@@ -57,21 +57,25 @@ idMD5Mesh::idMD5Mesh
 ====================
 */
 idMD5Mesh::idMD5Mesh() {
+
 	scaledWeights	= NULL;
 	weightIndex		= NULL;
 	shader			= NULL;
 	numTris			= 0;
 	deformInfo		= NULL;
 	surfaceNum		= 0;
+
 	#if MD5_ENABLE_GIBS > 0
 	gibZones		= 0;
 	gibShown		= 0;
 	gibSpurt		= 0;
 	#endif
+
 	#if MD5_ENABLE_LODS > 0
 	lodLower		= 0.00f;
 	lodUpper		= 0.00f;
 	#endif
+
 }
 
 /*
@@ -97,7 +101,7 @@ int idMD5Mesh::ZoneParse(const char* zone, int& step) {
 
 	int bits = 0;
 
-	if (isdigit(zone[0])) {
+	if (isxdigit(zone[0])) {
 		if (zone[0] == '0' && zone[1] == 'x') {
 			char* next = NULL;
 			bits = strtol(&zone[2], &next, 16) << 1;
@@ -107,21 +111,21 @@ int idMD5Mesh::ZoneParse(const char* zone, int& step) {
 			char* part = NULL;
 			char* rest = NULL;
 			char* next = NULL;
-			for (part = strtok_s(copy, ",", &rest); part && isdigit(part[0]); part = strtok_s(NULL, ",", &rest)) {
-				bits |= 1 << (strtol(part, &next, 10) + 1);
+			for (part = strtok_s(copy, ",", &rest); part && isxdigit(part[0]); part = strtok_s(NULL, ",", &rest)) {
+				bits |= 1 << (strtol(part, &next, 16) + 1);
 			}
-			free(copy);
 			step += next - copy;
+			free(copy);
 		} else {
-			int index = (zone[1] != '-' || zone[2] <= zone[0] || !isdigit(zone[2]) ? 0 : 2);
-			int start = (zone[0]     - 47); // 1-based index (0-bit is 'unassigned').
-			int until = (zone[index] - 47);
+			int index = (zone[1] != '-' || zone[2] <= zone[0] || !isxdigit(zone[2]) ? 0 : 2);
+			int start = (zone[0]     - 47); if (start > 17) start -= 7; // 1-based index (0-bit is 'unassigned').
+			int until = (zone[index] - 47); if (until > 17) until -= 7;
 			for (; start <= until; start++) bits |= (1 << start);
 			step += index + 1;
 		}
 	}
 
-	return bits;
+	return bits & MD5_GIBBED_BITS;
 
 }
 
@@ -145,7 +149,7 @@ void idMD5Mesh::ParseZone(const char* zone, int show) {
 	}
 
 	if (step && zone[step]) {
-		gibSpurt = (zone[step] == '#' ? 3 : zone[step] == '$' ? 2 : zone[step] == '%' ? 1 : 0);
+		gibSpurt = (zone[step] == '@' ? 5 : zone[step] == '#' ? 4 : zone[step] == '&' ? 3 : zone[step] == '$' ? 2 : zone[step] == '%' ? 1 : 0);
 	}
 
 }
@@ -210,30 +214,30 @@ void idMD5Mesh::ParseMesh(idLexer &parser, int numJoints, const idJointMat *join
 	trim = idStr::FindText(shaderComment.c_str(), "STUB:");
 	if (trim >= 0) ParseZone(&shaderComment.c_str()[trim + 5], 2);
 	trim = idStr::FindText(shaderComment.c_str(), "HIDE!");
-	if (trim >= 0) {gibZones = MD5_GIBBED_MASK; gibShown = MD5_GIBBED_HIDE;}
+	if (trim >= 0) {gibZones = MD5_GIBBED_BITS; gibShown = MD5_GIBBED_HIDE;}
 	trim = idStr::FindText(shaderComment.c_str(), "SHOW!");
-	if (trim >= 0) {gibZones = MD5_GIBBED_MASK; gibShown = MD5_GIBBED_SHOW;}
+	if (trim >= 0) {gibZones = MD5_GIBBED_BITS; gibShown = MD5_GIBBED_SHOW;}
 	trim = idStr::FindText(shaderComment.c_str(), "TRIM!") + 1;
 	#endif
 
 	#if MD5_BINARY_MESH > 2 // WRITE+
 	if (text_fd) {
 		#if MD5_ENABLE_GIBS > 0
-		const char* spurts[4] = {"", "%", "$", "#"};
+		const char* spurts[] = {"", "%", "&", "#", "$", "@"};
 		if /*el*/ (gibZones == MD5_GIBBED_ZERO && trim == 0) {
-			text_fd->Printf("mesh {\n\tshader \"%s\"\n",                    shaderName.c_str()                                                                    );
+			text_fd->Printf("mesh {\n\tshader \"%s\"\n",                    shaderName.c_str()                                                                       );
 		} else if (gibZones == MD5_GIBBED_ZERO) {
-			text_fd->Printf("mesh {\n\tshader \"%s\" // TRIM!\n",           shaderName.c_str()                                                                    );
-		} else if (gibZones == MD5_GIBBED_MASK && gibShown == MD5_GIBBED_HIDE) {
-			text_fd->Printf("mesh {\n\tshader \"%s\" // HIDE!\n",           shaderName.c_str()                                                                    );
-		} else if (gibZones == MD5_GIBBED_MASK && gibShown == MD5_GIBBED_SHOW) {
-			text_fd->Printf("mesh {\n\tshader \"%s\" // SHOW!\n",           shaderName.c_str()                                                                    );
+			text_fd->Printf("mesh {\n\tshader \"%s\" // TRIM!\n",           shaderName.c_str()                                                                       );
+		} else if (gibZones == MD5_GIBBED_BITS && gibShown == MD5_GIBBED_HIDE) {
+			text_fd->Printf("mesh {\n\tshader \"%s\" // HIDE!\n",           shaderName.c_str()                                                                       );
+		} else if (gibZones == MD5_GIBBED_BITS && gibShown == MD5_GIBBED_SHOW) {
+			text_fd->Printf("mesh {\n\tshader \"%s\" // SHOW!\n",           shaderName.c_str()                                                                       );
 		} else if (gibShown == MD5_GIBBED_HIDE) {
-			text_fd->Printf("mesh {\n\tshader \"%s\" // HIDE:0x%03X%s%s\n", shaderName.c_str(), (gibZones           ) >> 1, spurts[gibSpurt], trim ? "&TRIM!" : "");
+			text_fd->Printf("mesh {\n\tshader \"%s\" // HIDE:0x%03X%s%s\n", shaderName.c_str(), (gibZones           ) >> 1, spurts[gibSpurt], trim ? " // TRIM!" : "");
 		} else if (gibShown == MD5_GIBBED_SHOW) {
-			text_fd->Printf("mesh {\n\tshader \"%s\" // SHOW:0x%03X%s%s\n", shaderName.c_str(), (gibZones           ) >> 1, spurts[gibSpurt], trim ? "&TRIM!" : "");
+			text_fd->Printf("mesh {\n\tshader \"%s\" // SHOW:0x%03X%s%s\n", shaderName.c_str(), (gibZones           ) >> 1, spurts[gibSpurt], trim ? " // TRIM!" : "");
 		} else {
-			text_fd->Printf("mesh {\n\tshader \"%s\" // STUB:0x%03X%s%s\n", shaderName.c_str(), (gibZones | gibShown) >> 1, spurts[gibSpurt], trim ? "&TRIM!" : "");
+			text_fd->Printf("mesh {\n\tshader \"%s\" // STUB:0x%03X%s%s\n", shaderName.c_str(), (gibZones | gibShown) >> 1, spurts[gibSpurt], trim ? " // TRIM!" : "");
 		}
 		#else
 		text_fd->Printf("mesh {\n\tshader \"%s\"\n", shaderName.c_str());
@@ -903,9 +907,11 @@ void idRenderModelMD5::LoadModel() {
 		if (meshes[i].gibZones) {
 			gibParts |= meshes[i].gibZones;
 			if (meshes[i].gibSpurt) {
-				if (meshes[i].gibSpurt == 3) gibSpark |= meshes[i].gibZones; else
-				if (meshes[i].gibSpurt == 2) gibFlame |= meshes[i].gibZones; else
-				if (meshes[i].gibSpurt == 1) gibBleed |= meshes[i].gibZones;
+				if (meshes[i].gibSpurt == 5) gibClass |= meshes[i].gibZones; else
+				if (meshes[i].gibSpurt == 4) gibSpark |= meshes[i].gibZones; else
+				if (meshes[i].gibSpurt == 3) gibFlame |= meshes[i].gibZones; else
+				if (meshes[i].gibSpurt == 2) gibGloop |= meshes[i].gibZones; else
+				if (meshes[i].gibSpurt == 1) gibBlood |= meshes[i].gibZones;
 			}
 		}
 		#endif
@@ -1140,9 +1146,11 @@ idRenderModel *idRenderModelMD5::InstantiateDynamicModel( const struct renderEnt
 
 	#if MD5_ENABLE_GIBS > 0
 	staticModel->gibParts = gibParts;
-//	staticModel->gibBleed = gibBleed;
+//	staticModel->gibBlood = gibBlood;
+//	staticModel->gibGloop = gibGloop;
 //	staticModel->gibFlame = gibFlame;
 //	staticModel->gibSpark = gibSpark;
+//	staticModel->gibClass = gibClass;
 	#endif
 
 	if ( r_showSkel.GetInteger() ) {
@@ -1166,8 +1174,8 @@ idRenderModel *idRenderModelMD5::InstantiateDynamicModel( const struct renderEnt
 		if /*el*/ (shader == NULL) {
 			staticModel->DeleteSurfaceWithId(i); mesh->surfaceNum = -1; continue;
 		} else if (mesh->gibZones) {
-			if (gibParts == MD5_GIBBED_MASK && ent->gibbedZones < MD5_GIBBED_HEAD) { // We have a 'whole' mesh and no zones are gibbed (we may set gibbedZones|0x1 on death).
-				if /*el*/ (mesh->gibZones != MD5_GIBBED_MASK || mesh->gibShown != MD5_GIBBED_HIDE) {
+			if (gibParts == MD5_GIBBED_BITS && ent->gibbedZones < MD5_GIBBED_HEAD) { // We have a 'whole' mesh and no zones are gibbed (we may set gibbedZones|0x1 on death).
+				if /*el*/ (mesh->gibZones != MD5_GIBBED_BITS || mesh->gibShown != MD5_GIBBED_HIDE) {
 					staticModel->DeleteSurfaceWithId(i); mesh->surfaceNum = -1; continue;
 				} else if (shader->IsDrawn() != true && shader->SurfaceCastsShadow() != true) {
 					staticModel->DeleteSurfaceWithId(i); mesh->surfaceNum = -1; continue;
@@ -1175,7 +1183,7 @@ idRenderModel *idRenderModelMD5::InstantiateDynamicModel( const struct renderEnt
 			} else if (mesh->gibZones & ent->gibbedZones) { // A qualifying zone is gibbed.
 				if /*el*/ (mesh->gibShown == MD5_GIBBED_HIDE || (mesh->gibShown & ent->gibbedZones) > 1) { // Always hide or ancestor gibbed (we may set gibbedZones|0x1 on death).
 					staticModel->DeleteSurfaceWithId(i); mesh->surfaceNum = -1; continue;
-				} else if (mesh->gibZones == MD5_GIBBED_MASK && shader->IsDrawn() != true && shader->SurfaceCastsShadow() != true) { // Suppress nodraw (to use the gib skeleton).
+				} else if (mesh->gibZones == MD5_GIBBED_BITS && shader->IsDrawn() != true && shader->SurfaceCastsShadow() != true) { // Suppress nodraw (to use the gib skeleton).
 					staticModel->DeleteSurfaceWithId(i); mesh->surfaceNum = -1; continue;
 				}
 			} else { // No qualifying zones are gibbed.
@@ -1232,12 +1240,12 @@ idRenderModel *idRenderModelMD5::InstantiateDynamicModel( const struct renderEnt
 				ent->hModel->lodIndex = ent->entityNum;
 				ent->hModel->lodCalls = 1;
 				ent->hModel->lodFaces = mesh->numTris;
-				ent->hModel->lodLevel = mesh->gibZones & (ent->gibbedZones ? ent->gibbedZones : MD5_GIBBED_MASK);
+				ent->hModel->lodLevel = mesh->gibZones & (ent->gibbedZones ? ent->gibbedZones : MD5_GIBBED_BITS);
 				ent->hModel->lodRange = 0;
 			} else if (ent->hModel->lodIndex == ent->entityNum) {
 				ent->hModel->lodCalls = ent->hModel->lodCalls + 1;
 				ent->hModel->lodFaces = ent->hModel->lodFaces + (mesh->numTris);
-				ent->hModel->lodLevel = ent->hModel->lodLevel | (mesh->gibZones & (ent->gibbedZones ? ent->gibbedZones : MD5_GIBBED_MASK));
+				ent->hModel->lodLevel = ent->hModel->lodLevel | (mesh->gibZones & (ent->gibbedZones ? ent->gibbedZones : MD5_GIBBED_BITS));
 				ent->hModel->lodRange = 0;
 			}
 		#endif
@@ -1390,9 +1398,11 @@ void idRenderModelMD5::PurgeModel() {
 	meshes.Clear();
 	#if MD5_ENABLE_GIBS > 0
 	gibParts = 0;
-	gibBleed = 0;
+	gibBlood = 0;
+	gibGloop = 0;
 	gibFlame = 0;
 	gibSpark = 0;
+	gibClass = 0;
 	#endif
 	#if MD5_ENABLE_LODS > 1 // DEBUG
 	lodFrame = 0;

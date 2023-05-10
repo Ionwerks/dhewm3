@@ -4523,7 +4523,7 @@ bool idAI::AttackMelee( const char *meleeDefName ) {
 	const idSoundShader *shader;
 
 	#if MD5_ENABLE_GIBS > 0 // ANIMS DAMAGE
-	if (meleeDefName[0] == 0) return false; // MD5_ENABLE_GIBS // TODO Possibly we should create a null-damage type?
+	if (meleeDefName && meleeDefName[0] == 0) return false; // We might instead create a null-damage type?
 	#endif
 
 	meleeDef = gameLocal.FindEntityDefDict( meleeDefName, false );

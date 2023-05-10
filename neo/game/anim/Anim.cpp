@@ -333,7 +333,7 @@ int idMD5Anim::ZoneParse(const char* zone, int& step) {
 
 	int bits = 0;
 
-	if (isdigit(zone[0])) {
+	if (isxdigit(zone[0])) {
 		if (zone[0] == '0' && zone[1] == 'x') {
 			char* next = NULL;
 			bits = strtol(&zone[2], &next, 16) << 1;
@@ -343,21 +343,21 @@ int idMD5Anim::ZoneParse(const char* zone, int& step) {
 			char* part = NULL;
 			char* rest = NULL;
 			char* next = NULL;
-			for (part = strtok_s(copy, ",", &rest); part && isdigit(part[0]); part = strtok_s(NULL, ",", &rest)) {
-				bits |= 1 << (strtol(part, &next, 10) + 1);
+			for (part = strtok_s(copy, ",", &rest); part && isxdigit(part[0]); part = strtok_s(NULL, ",", &rest)) {
+				bits |= 1 << (strtol(part, &next, 16) + 1);
 			}
-			free(copy);
 			step += next - copy;
+			free(copy);
 		} else {
-			int index = (zone[1] != '-' || zone[2] <= zone[0] || !isdigit(zone[2]) ? 0 : 2);
-			int start = (zone[0]     - 47); // 1-based index (0-bit is 'unassigned').
-			int until = (zone[index] - 47);
+			int index = (zone[1] != '-' || zone[2] <= zone[0] || !isxdigit(zone[2]) ? 0 : 2);
+			int start = (zone[0]     - 47); if (start > 17) start -= 7; // 1-based index (0-bit is 'unassigned').
+			int until = (zone[index] - 47); if (until > 17) until -= 7;
 			for (; start <= until; start++) bits |= (1 << start);
 			step += index + 1;
 		}
 	}
 
-	return bits;
+	return bits & MD5_GIBBED_BITS;
 
 }
 
