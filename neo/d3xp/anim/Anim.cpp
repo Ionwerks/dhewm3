@@ -377,7 +377,6 @@ void idMD5Anim::ParseZone(const char* zone) {
 //	}
 
 	if (step && zone[step]) {
-	//	gibLimit |= (zone[step] == '!' ? 0x3000 : zone[step] == '?' ? 0x2000 : zone[step] == ':' ? 0x1000 : 0x0000);
 		gibLimit |= (zone[step] == '!' ? MD5_IS_FALLBACK : 0x0000);
 	}
 

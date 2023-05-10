@@ -2346,32 +2346,33 @@ void idActor::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir
 		int gibbedPart = 0;
 		if (location > INVALID_JOINT && pain_threshold && pain_threshold <= damage) {
 			gibbedZone = damageBonesZone[location];
-			#if MD5_ENABLE_GIBS > 2 // DEBUG
-			if (gibbedZone) {{{
-			#elif 0 // BASIC
-			if (gibbedZone && damage >= health * (gibbedZone == 2 ? 2 : 1)) {{{ // Require double current health to gib body.
-			#else	// TALLY
 			if (damageZonesHeap[0] < gameLocal.time) {
-			//	memset(damageZonesHeap.Ptr(), 0, damageZonesHeap.MemoryUsed());
-			//	damageZonesHeap[0] = gameLocal.time + 1000;
+				//	memset(damageZonesHeap.Ptr(), 0, damageZonesHeap.MemoryUsed());
+				//	damageZonesHeap[0] = gameLocal.time + 1000;
 				for (int i = 1; i < damageZonesHeap.Num(); i++) damageZonesHeap[i] >>= 1; // Half-damage carry over?
 			}
-			damageZonesHeap[0] = gameLocal.time + 1000; // MD5_ENABLE_GIBS // TODO I think this should always be revised?
+			damageZonesHeap[0] = gameLocal.time + 1000; // MD5_ENABLE_GIBS // TODO Should be continually revised?
 			if (gibbedZone) {
 				damageZonesHeap[gibbedZone] += damage;
-				if (damageZonesHeap[gibbedZone] >= 25) {
-					if (gibbedZone >= 3 || damageZonesHeap[gibbedZone] >= 50) { // BODY/HEAD (assume HEAD takes 2x).
-			#endif
-						renderEntity_t* gibbedBody = &renderEntity;
-						renderEntity_t* gibbedHead = head.GetEntity() ? head.GetEntity()->GetRenderEntity() : NULL;
-						gibbedFlag |= (1 << gibbedZone);
-						if (gibbedBody) gibbedPart |= (gibbedBody->hModel->gibParts & gibbedFlag);
-						if (gibbedHead) gibbedPart |= (gibbedHead->hModel->gibParts & gibbedFlag);
-						if (gibbedPart) {
-							if (gibbedBody) Sever(gibbedBody, gibbedPart);
-							if (gibbedHead) Sever(gibbedHead, gibbedPart);
-							if (gibbedPart) health += damage;
-						}
+				#if MD5_ENABLE_GIBS > 2 // DEBUG
+				if (
+					(ai_testDismemberment.GetInteger() == 4) ||
+					(ai_testDismemberment.GetInteger() == 3 && (damage >= health * (gibbedZone == 2 ? 2 : 1))) || // Require 2x current health to gib body.
+					(ai_testDismemberment.GetInteger() == 2 && (damageZonesHeap[gibbedZone] >= 50 || (damageZonesHeap[gibbedZone] >= 25 && gibbedZone >= 3))) || // Require 2x to gib head/body (given head usually receives 2x).
+					(ai_testDismemberment.GetInteger() <= 1 && (damageZonesHeap[gibbedZone] >= health * (gibbedZone == 2 ? 2 : 1))) // Require 2x to gib body.
+				) {
+				#else
+				if (damageZonesHeap[gibbedZone] >= health * (gibbedZone == 2 ? 2 : 1)) {
+				#endif
+					renderEntity_t* gibbedBody = &renderEntity;
+					renderEntity_t* gibbedHead = head.GetEntity() ? head.GetEntity()->GetRenderEntity() : NULL;
+					gibbedFlag |= (1 << gibbedZone);
+					if (gibbedBody) gibbedPart |= (gibbedBody->hModel->gibParts & gibbedFlag);
+					if (gibbedHead) gibbedPart |= (gibbedHead->hModel->gibParts & gibbedFlag);
+					if (gibbedPart) {
+						if (gibbedBody) Sever(gibbedBody, gibbedPart);
+						if (gibbedHead) Sever(gibbedHead, gibbedPart);
+						if (gibbedPart) health += damage;
 					}
 				}
 			}
@@ -2515,16 +2516,16 @@ idActor::Sever
 void idActor::Sever(renderEntity_t* entity, int& zone) {
 
 	if /*el*/ (entity->gibbedZones      & zone) { // Formerly gibbed.
-		zone  = 0x0000;
+		zone  = MD5_GIBBED_ZERO;
 	} else if (entity->hModel->gibBleed & zone) { // Zone will bleed.
-		zone |= 0x1000;
+		zone |= MD5_GIBFX_BLOOD;
 	} else if (entity->hModel->gibFlame & zone) { // Zone will flame.
-		zone |= 0x2000;
+		zone |= MD5_GIBFX_FLAME;
 	} else if (entity->hModel->gibSpark & zone) { // Zone will spark.
-		zone |= 0x3000;
+		zone |= MD5_GIBFX_SPARK;
 	}
 
-	if (zone) entity->gibbedZones |= zone & 0x0FFE;
+	if (zone) entity->gibbedZones |= zone & MD5_GIBBED_MASK;
 
 }
 
@@ -2546,7 +2547,7 @@ void idActor::Bleed(int gibbedPart, int gibbedZone) {
 			damageEmitAngle = idAngles(damageZonesDrop[gibbedZone].ToVec3()).ToMat3();
 			damageEmitJoint = jointHandle_t(damageZonesBone[gibbedZone]);
 			damageEmitStart = gameLocal.time;
-			damageEmitStage = gibbedPart; gibbedPart >>= 12; gibbedPart--;
+			damageEmitStage = gibbedPart; gibbedPart /= MD5_GIBFX_BLOOD; gibbedPart--;
 			damageEmitSpray = static_cast<const idDeclParticle*>(declManager->FindType(DECL_PARTICLE, bodySpray[gibbedPart]));
 			damageEmitSever = static_cast<const idDeclParticle*>(declManager->FindType(DECL_PARTICLE, bodySever[gibbedPart]));
 			if (damageZonesKill[gibbedZone] && (damageEmitDeath == 0 || damageEmitDeath > gameLocal.time + damageZonesKill[gibbedZone])) {
@@ -2557,7 +2558,7 @@ void idActor::Bleed(int gibbedPart, int gibbedZone) {
 			damageEmitAngle = idAngles(damageZonesDrop[gibbedZone].ToVec3()).ToMat3();
 			damageEmitJoint = jointHandle_t(damageZonesBone[gibbedZone]);
 			damageEmitStart = gameLocal.time;
-			damageEmitStage = gibbedPart; gibbedPart >>= 12; gibbedPart--;
+			damageEmitStage = gibbedPart; gibbedPart /= MD5_GIBFX_BLOOD; gibbedPart--;
 			damageEmitSpray = static_cast<const idDeclParticle*>(declManager->FindType(DECL_PARTICLE, headSpray[gibbedPart]));
 			damageEmitSever = static_cast<const idDeclParticle*>(declManager->FindType(DECL_PARTICLE, headSever[gibbedPart]));
 			if (damageZonesKill[gibbedZone] && (damageEmitDeath == 0 || damageEmitDeath > gameLocal.time + damageZonesKill[gibbedZone])) {
@@ -2568,13 +2569,13 @@ void idActor::Bleed(int gibbedPart, int gibbedZone) {
 			damageEmitAngle = idAngles(damageZonesDrop[gibbedZone].ToVec3()).ToMat3();
 			damageEmitJoint = jointHandle_t(damageZonesBone[gibbedZone]);
 			damageEmitStart = gameLocal.time;
-			damageEmitStage = gibbedPart; gibbedPart >>= 12; gibbedPart--;
+			damageEmitStage = gibbedPart; gibbedPart /= MD5_GIBFX_BLOOD; gibbedPart--;
 			damageEmitSpray = static_cast<const idDeclParticle*>(declManager->FindType(DECL_PARTICLE, limbSpray[gibbedPart]));
 			damageEmitSever = static_cast<const idDeclParticle*>(declManager->FindType(DECL_PARTICLE, limbSever[gibbedPart]));
 			if (damageZonesKill[gibbedZone] && (damageEmitDeath == 0 || damageEmitDeath > gameLocal.time + damageZonesKill[gibbedZone])) {
 				damageEmitDeath = gameLocal.time + damageZonesKill[gibbedZone];
 			}
-		} else return; // Don't want multiple gibs in the same frame to prematurely run down the cycle value.
+		} else return; // Don't want multiple gibs in the same frame to prematurely run down the stage variable.
 	}
 
 	if (damageEmitStart && damageEmitJoint > INVALID_JOINT && damageEmitSever) {
@@ -2586,7 +2587,9 @@ void idActor::Bleed(int gibbedPart, int gibbedZone) {
 		emitMatrix  = damageEmitAngle * emitMatrix;
 		emitOrigin += damageEmitShift * emitMatrix;
 		#if MD5_ENABLE_GIBS > 2 // DEBUG
-		gameRenderWorld->DebugLine(colorCyan, emitOrigin, idVec3(0.00f, 12.00f, 0.00f) * emitMatrix + emitOrigin, gameLocal.msec);
+		if (ai_testDismemberment.GetInteger() >= 1) gameRenderWorld->DebugLine(colorYellow,  emitOrigin, idVec3(0.00f, 0.00f, 9.00f) * emitMatrix + emitOrigin, gameLocal.msec);
+		if (ai_testDismemberment.GetInteger() >= 2) gameRenderWorld->DebugLine(colorCyan,    emitOrigin, idVec3(0.00f, 9.00f, 0.00f) * emitMatrix + emitOrigin, gameLocal.msec);
+		if (ai_testDismemberment.GetInteger() >= 3) gameRenderWorld->DebugLine(colorMagenta, emitOrigin, idVec3(9.00f, 0.00f, 0.00f) * emitMatrix + emitOrigin, gameLocal.msec);
 		#endif
 		#ifdef _D3XP
 		SetTimeState ts(timeGroup);
@@ -2596,15 +2599,15 @@ void idActor::Bleed(int gibbedPart, int gibbedZone) {
 		#endif
 			if /*el*/ (damageEmitDeath && damageEmitDeath < gameLocal.time) {
 				damageEmitStart = 0;
-				damageEmitStage = 0x0000;
+				damageEmitStage = MD5_GIBBED_ZERO;
 				Damage(this, this, GetPhysics()->GetGravityNormal() * 0.10f, "damage_suicide", 1.00f, INVALID_JOINT);
-			} else if (damageEmitStage & 0x3000) {
+			} else if (damageEmitStage & MD5_GIBFX_SPARK) {
 				damageEmitStart = gameLocal.time;
-				damageEmitStage = 0x0FFF & damageEmitStage;
+				damageEmitStage = MD5_GIBBED_MASK & damageEmitStage;
 				damageEmitSever = damageEmitSpray;
 			} else {
 				damageEmitStart = gameLocal.time;
-				damageEmitStage = 0x0000;
+				damageEmitStage = MD5_GIBBED_ZERO;
 			//	damageEmitSever = damageEmitSpray;
 			}
 		}
@@ -2723,9 +2726,11 @@ void idActor::SetupDamageGroups( void ) {
 		arg = spawnArgs.MatchPrefix("damage_scale ", arg);
 	}
 	#if MD5_ENABLE_GIBS > 2 // DEBUG
-	for (i = 0; i < damageBonesZone.Num(); i++) {
-		zoneIndex = damageBonesZone[i];
-		common->Printf("i:%i z:%s d:%f b:%i g:%i\n", i, damageZonesName[zoneIndex].c_str(), damageZonesRate[zoneIndex], damageZonesBone[zoneIndex], zoneIndex);
+	if (ai_testDismemberment.GetBool()) {
+		for (i = 0; i < damageBonesZone.Num(); i++) {
+			zoneIndex = damageBonesZone[i];
+			common->Printf("i:%i z:%s d:%f b:%i g:%i\n", i, damageZonesName[zoneIndex].c_str(), damageZonesRate[zoneIndex], damageZonesBone[zoneIndex], zoneIndex);
+		}
 	}
 	#endif
 	#else

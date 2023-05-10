@@ -49,10 +49,17 @@ If you have questions concerning this license or the applicable additional terms
 
 #define MD5_ENABLE_LODS			3 // 0=Disable, 1=Enable, 2=1+ai_showLevelOfDetail, 3=2+r_testUnsmoothedTangents
 #define MD5_ENABLE_GIBS			3 // 0=Disable, 1=Enable, 2=Enable+NoDraw 3=Enable+NoDraw+Debug
-#define MD5_GIBBED_HEAD			2
-#define MD5_GIBBED_BODY			4
-#define MD5_GIBBED_CORE			6 // MD5_GIBBED_BODY | MD5_GIBBED_HEAD
-#define MD5_OR_HEADLESS			0x1000
+#define MD5_GIBBED_ZERO			0x0000
+#define MD5_GIBBED_HEAD			0x0002
+#define MD5_GIBBED_BODY			0x0004
+#define MD5_GIBBED_CORE			0x0006 // MD5_GIBBED_BODY | MD5_GIBBED_HEAD
+#define MD5_GIBBED_MASK			0x0FFE
+#define MD5_GIBBED_HIDE			0x0000 // For gibShown (always hide when gibbed; HIDE).
+#define MD5_GIBBED_SHOW			0x0001 // For gibShown (always show when gibbed; SHOW). Other bits are dependencies (show only if those are NOT gibbed; STUB).
+#define MD5_GIBFX_BLOOD			0x1000 // Also used for divisor (to get effect ordinal; 0-3, instead of >> 12).
+#define MD5_GIBFX_FLAME			0x2000
+#define MD5_GIBFX_SPARK			0x3000 // Also used for masking.
+#define MD5_OR_HEADLESS			0x1000 // MD5_ENABLE_GIBS // TODO Not yet parsed.
 #define MD5_IS_FALLBACK			0x2000
 #define MD5_BINARY_MESH			4 // 0=Disable, 1=Enable, 2=1+binaryExport, 3=1+binaryExport+Text, 4=1+binaryExport+Text+Save
 #define MD5_BINARY_ANIM			1 // 0=Disable, 1=Enable, 2=Enable-bigEndian
@@ -93,6 +100,9 @@ sawyer		2.00
 zsec_pistol	1.25
 zsec_shield	1.25
 ?			1.25
+------------------------------------------------------------------------------------------------------
+The ai_testDismemberment implementation is not pretty (passing the mesh/face count out via properties
+added to idRenderModel) but is sufficient for development/testing. Set MD5_ENABLE_GIBS=2 for releases.
 =================================================================================================== */
 
 /* ===================================================================================================

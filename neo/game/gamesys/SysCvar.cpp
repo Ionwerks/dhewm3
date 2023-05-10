@@ -163,6 +163,10 @@ idCVar ai_blockedFailSafe(			"ai_blockedFailSafe",		"1",			CVAR_GAME | CVAR_BOOL
 idCVar ai_showLevelOfDetail(		"ai_showLevelOfDetail",		"0",			CVAR_GAME | CVAR_INTEGER, "Draws the AI's current LOD above its head.");
 #endif
 
+#if MD5_ENABLE_GIBS > 2 // DEBUG
+idCVar ai_testDismemberment(		"ai_testDismemberment",		"0",			CVAR_GAME | CVAR_INTEGER, "Selects the active gib damage evaluation.");
+#endif
+
 idCVar g_dvTime(					"g_dvTime",					"1",			CVAR_GAME | CVAR_FLOAT, "" );
 idCVar g_dvAmplitude(				"g_dvAmplitude",			"0.001",		CVAR_GAME | CVAR_FLOAT, "" );
 idCVar g_dvFrequency(				"g_dvFrequency",			"0.5",			CVAR_GAME | CVAR_FLOAT, "" );
