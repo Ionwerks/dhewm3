@@ -54,16 +54,17 @@ If you have questions concerning this license or the applicable additional terms
 #define MD5_GIBBED_BODY			0x0004
 #define MD5_GIBBED_CORE			0x0006 // MD5_GIBBED_BODY | MD5_GIBBED_HEAD
 #define MD5_GIBBED_BITS			0x1FFE
-#define MD5_GIBBED_HIDE			0x0000 // For gibShown (always hide when gibbed; HIDE).
-#define MD5_GIBBED_SHOW			0x0001 // For gibShown (always show when gibbed; SHOW). Other bits are dependencies (show only if those are NOT gibbed; STUB).
+#define MD5_GIBBED_HIDE			0x0000 // For gibShown (always hide when gibbed; 'HIDE').
+#define MD5_GIBBED_SHOW			0x0001 // For gibShown (always show when gibbed; 'SHOW'). Other bits are dependencies (show only if those are NOT gibbed; 'STUB').
 #define MD5_GIBFX_BLOOD			0x2000 // Used as a divisor also (to get effect ordinal 0-7, instead of >> 14).
 #define MD5_GIBFX_GLOOP			0x4000
 #define MD5_GIBFX_FLAME			0x6000
 #define MD5_GIBFX_SPARK			0x8000
 #define MD5_GIBFX_CLASS			0xA000
 #define MD5_GIBFX_INDEX			0xE000 // Used for masking.
-#define MD5_OR_HEADLESS			0x1000 // MD5_ENABLE_GIBS // TODO Not yet parsed.
-#define MD5_IS_FALLBACK			0x2000
+#define MD5_IS_FALLBACK			0x2000 // Permit animation ONLY if no other is allowed.
+#define MD5_OR_FALLBACK			0x4000 // Permit animation if no other is allowed.
+#define MD5_OR_HEADLESS			0x8000 // Permit animation if headless.
 #define MD5_BINARY_MESH			4 // 0=Disable, 1=Enable, 2=1+binaryExport, 3=1+binaryExport+Text, 4=1+binaryExport+Text+Save
 #define MD5_BINARY_ANIM			1 // 0=Disable, 1=Enable, 2=Enable-bigEndian
 #define IMG_ENABLE_PNGS			1 // 0=Disable, 1=Enable

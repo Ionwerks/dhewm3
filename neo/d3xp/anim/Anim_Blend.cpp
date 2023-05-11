@@ -2979,13 +2979,14 @@ int idDeclModelDef::GetAnim(const char* name) const {
 	for( i = 0; i < anims.Num(); i++ ) {
 		if ( !strcmp( anims[ i ]->Name(), name ) ) {
 			#if MD5_ENABLE_GIBS > 0 // ANIMS PERMIT
-			if (gibs) { // Entity has been gibbed.
-				int gibLimit = anims[i]->MD5Anim(0)->gibLimit;
-				if (gibLimit & gibs) { // A required zone is gibbed.
-					if ((gibLimit & MD5_OR_HEADLESS) == 0 || (gibs & MD5_GIBBED_HEAD) == 0) { // No exemption on headless.
-						if (gibLimit & MD5_IS_FALLBACK) fallback = i + 1; // Allow if no other is available.
-						continue;
-					}
+			int gibLimit = anims[i]->MD5Anim(0)->gibLimit;
+			if (gibLimit & MD5_IS_FALLBACK) {
+				fallback = i + 1; // Use only if no other is permitted.
+				continue;
+			} else if (gibLimit & gibs) { // A required zone is gibbed.
+				if ((gibLimit & MD5_OR_HEADLESS) == 0 || (gibs & MD5_GIBBED_CORE) == 0) { // No exemption on headless.
+					if ((gibLimit & MD5_OR_FALLBACK) != 0 && fallback == 0) fallback = i + 1; // Allow if no other is available.
+					continue;
 				}
 			}
 			#endif

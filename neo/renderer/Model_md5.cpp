@@ -223,7 +223,7 @@ void idMD5Mesh::ParseMesh(idLexer &parser, int numJoints, const idJointMat *join
 	#if MD5_BINARY_MESH > 2 // WRITE+
 	if (text_fd) {
 		#if MD5_ENABLE_GIBS > 0
-		const char* spurts[] = {"", "%", "&", "#", "$", "@"};
+		const char* spurts[] = {"", "%", "$", "&", "#", "@"};
 		if /*el*/ (gibZones == MD5_GIBBED_ZERO && trim == 0) {
 			text_fd->Printf("mesh {\n\tshader \"%s\"\n",                    shaderName.c_str()                                                                       );
 		} else if (gibZones == MD5_GIBBED_ZERO) {
@@ -233,11 +233,11 @@ void idMD5Mesh::ParseMesh(idLexer &parser, int numJoints, const idJointMat *join
 		} else if (gibZones == MD5_GIBBED_BITS && gibShown == MD5_GIBBED_SHOW) {
 			text_fd->Printf("mesh {\n\tshader \"%s\" // SHOW!\n",           shaderName.c_str()                                                                       );
 		} else if (gibShown == MD5_GIBBED_HIDE) {
-			text_fd->Printf("mesh {\n\tshader \"%s\" // HIDE:0x%03X%s%s\n", shaderName.c_str(), (gibZones           ) >> 1, spurts[gibSpurt], trim ? " // TRIM!" : "");
+			text_fd->Printf("mesh {\n\tshader \"%s\" // HIDE:0x%04X%s%s\n", shaderName.c_str(), (gibZones           ) >> 1, spurts[gibSpurt], trim ? " // TRIM!" : "");
 		} else if (gibShown == MD5_GIBBED_SHOW) {
-			text_fd->Printf("mesh {\n\tshader \"%s\" // SHOW:0x%03X%s%s\n", shaderName.c_str(), (gibZones           ) >> 1, spurts[gibSpurt], trim ? " // TRIM!" : "");
+			text_fd->Printf("mesh {\n\tshader \"%s\" // SHOW:0x%04X%s%s\n", shaderName.c_str(), (gibZones           ) >> 1, spurts[gibSpurt], trim ? " // TRIM!" : "");
 		} else {
-			text_fd->Printf("mesh {\n\tshader \"%s\" // STUB:0x%03X%s%s\n", shaderName.c_str(), (gibZones | gibShown) >> 1, spurts[gibSpurt], trim ? " // TRIM!" : "");
+			text_fd->Printf("mesh {\n\tshader \"%s\" // STUB:0x%04X%s%s\n", shaderName.c_str(), (gibZones | gibShown) >> 1, spurts[gibSpurt], trim ? " // TRIM!" : "");
 		}
 		#else
 		text_fd->Printf("mesh {\n\tshader \"%s\"\n", shaderName.c_str());

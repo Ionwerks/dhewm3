@@ -377,7 +377,7 @@ void idMD5Anim::ParseZone(const char* zone) {
 //	}
 
 	if (step && zone[step]) {
-		gibLimit |= (zone[step] == '!' ? MD5_IS_FALLBACK : 0x0000);
+		gibLimit |= (zone[step] == '!' ? MD5_IS_FALLBACK : zone[step] == '?' ? MD5_OR_FALLBACK : zone[step] == '.' ? MD5_OR_HEADLESS : 0);
 	}
 
 }
@@ -416,8 +416,8 @@ bool idMD5Anim::LoadAnim( const char *filename ) {
 
 	#if MD5_ENABLE_GIBS > 0 // ANIMS
 	idStr versionComment; parser.ReadRestOfLine(versionComment);
-	int uses = idStr::FindText(versionComment.c_str(), "USES:") + 5;
-	if (uses >= 5) ParseZone(&versionComment.c_str()[uses]);
+	int uses = idStr::FindText(versionComment.c_str(), "USES:");
+	if (uses >= 0) ParseZone(&versionComment.c_str()[uses + 5]);
 	#endif
 
 	// skip the commandline

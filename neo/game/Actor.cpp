@@ -2284,9 +2284,10 @@ void idActor::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir
 		if (location > INVALID_JOINT && pain_threshold && pain_threshold <= damage) {
 			gibbedZone = damageBonesZone[location];
 			if (damageZonesHeap[0] < gameLocal.time) {
-				for (int i = 1; i < damageZonesHeap.Num(); i++) damageZonesHeap[i] >>= 1; // Half-damage carry over? Or; memset(damageZonesHeap.Ptr(), 0, damageZonesHeap.MemoryUsed());
+				memset(damageZonesHeap.Ptr(), 0, damageZonesHeap.MemoryUsed());
+			//	for (int i = 1; i < damageZonesHeap.Num(); i++) damageZonesHeap[i] >>= 1; // Half-damage carry over?
 			}
-			damageZonesHeap[0] = gameLocal.time + 1000; // Accumulate damage received within 1 second of the previous (mainly for shotguns).
+			damageZonesHeap[0] = gameLocal.time + 1000; // Accumulate damage received within one second of the previous (mostly for shotguns).
 			if (gibbedZone) {
 				damageZonesHeap[gibbedZone] += damage;
 				#if MD5_ENABLE_GIBS > 2 // DEBUG

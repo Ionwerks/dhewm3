@@ -365,7 +365,7 @@ public:
 	const idAnim *				GetAnim( int index ) const;
 	int							GetSpecificAnim( const char *name ) const;
 	#if MD5_ENABLE_GIBS > 0 // ANIMS PERMIT
-	int							GetAnim(const char *name, int gibs = 0) const;
+	int							GetAnim(const char* name, int gibs = 0) const;
 	#else
 	int							GetAnim(const char* name) const;
 	#endif

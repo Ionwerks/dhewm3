@@ -1065,7 +1065,7 @@ void idAI::Think( void ) {
 
 		current_yaw += deltaViewAngles.yaw;
 		ideal_yaw = idMath::AngleNormalize180( ideal_yaw + deltaViewAngles.yaw );
-		#if MD5_ENABLE_GIBS > 0 && 0 // MOVES // BASE
+		#if MD5_ENABLE_GIBS > 0 && 0 // MOVES // TODO
 		if (renderEntity.gibbedZones & MD5_GIBBED_CORE) {
 			ideal_yaw = idMath::AngleNormalize180(ideal_yaw + ((gameLocal.realClientTime / 1000) % 180) - 90);
 		}
@@ -2520,7 +2520,7 @@ idAI::TurnToward
 */
 bool idAI::TurnToward( float yaw ) {
 	ideal_yaw = idMath::AngleNormalize180( yaw );
-	#if MD5_ENABLE_GIBS > 0 && 0 // MOVES // BASE
+	#if MD5_ENABLE_GIBS > 0 && 0 // MOVES // TODO
 	if (renderEntity.gibbedZones & MD5_GIBBED_CORE) {
 		ideal_yaw = idMath::AngleNormalize180(ideal_yaw + ((gameLocal.realClientTime / 1000) % 180) - 90);
 	}
@@ -2545,7 +2545,7 @@ bool idAI::TurnToward( const idVec3 &pos ) {
 	lengthSqr = local_dir.LengthSqr();
 	if ( lengthSqr > Square( 2.0f ) || ( lengthSqr > Square( 0.1f ) && enemy.GetEntity() == NULL ) ) {
 		ideal_yaw = idMath::AngleNormalize180( local_dir.ToYaw() );
-		#if MD5_ENABLE_GIBS > 0 && 0 // MOVES // BASE
+		#if MD5_ENABLE_GIBS > 0 && 0 // MOVES // TODO
 		if (renderEntity.gibbedZones & MD5_GIBBED_CORE) {
 			ideal_yaw = idMath::AngleNormalize180(ideal_yaw + ((gameLocal.realClientTime / 1000) % 180) - 90);
 		}
@@ -4240,7 +4240,7 @@ idProjectile *idAI::LaunchProjectile( const char *jointname, idEntity *target, b
 
 	axis = ang.ToMat3();
 
-	#if MD5_ENABLE_GIBS > 0 // MOVES // BASE
+	#if MD5_ENABLE_GIBS > 0 // MOVES // TODO
 	if (renderEntity.gibbedZones & MD5_GIBBED_CORE) {
 		axis = viewAxis;
 	}
