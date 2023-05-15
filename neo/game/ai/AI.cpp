@@ -4240,7 +4240,7 @@ idProjectile *idAI::LaunchProjectile( const char *jointname, idEntity *target, b
 
 	axis = ang.ToMat3();
 
-	#if MD5_ENABLE_GIBS > 0 // MOVES // TODO
+	#if MD5_ENABLE_GIBS > 0 && 1 // MOVES // TODO
 	if (renderEntity.gibbedZones & MD5_GIBBED_CORE) {
 		axis = viewAxis;
 	}

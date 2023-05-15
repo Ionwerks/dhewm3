@@ -144,12 +144,20 @@ void idMD5Mesh::ParseZone(const char* zone, int show) {
 //		gibOther = ZoneParse(&zone[step], step);
 //	}
 
-	if (step && show > 1 && gibZones && ((gibZones - 1) & gibZones)) { // Needs more than one zone flag (or shown will be zero).
-		gibShown = gibZones; gibZones = (gibZones & MD5_GIBBED_HEAD ? MD5_GIBBED_HEAD : 1 << (int)log2f(gibZones)); gibShown &= ~gibZones;
+	if (step && show > 1 && gibZones && (gibZones & (gibZones - 1))) { // Needs more than one zone flag (or gibShown will be zero).
+		gibShown = gibZones;
+		gibZones = 1 << (int)log2f(show == 2 ? gibZones : gibZones - (gibZones & (gibZones - 1))); // show == 2 ? 'STUB' : 'STEM'
+		gibShown = gibShown & ~gibZones;
 	}
 
 	if (step && zone[step]) {
-		gibSpurt = (zone[step] == '@' ? 5 : zone[step] == '#' ? 4 : zone[step] == '&' ? 3 : zone[step] == '$' ? 2 : zone[step] == '%' ? 1 : 0);
+		gibSpurt = ( // Character equivalent only safe to use with ?-? notation (or may be parsed as HEX with the preceding value).
+			zone[step] == '@' ? 5 : zone[step] == 'C' ? 5 :		// Class
+			zone[step] == '#' ? 4 : zone[step] == 'S' ? 4 :		// Spark
+			zone[step] == '&' ? 3 : zone[step] == 'F' ? 3 :		// Flame
+			zone[step] == '$' ? 2 : zone[step] == 'G' ? 2 :		// Gloop
+			zone[step] == '%' ? 1 : zone[step] == 'B' ? 1 : 0	// Blood
+		);
 	}
 
 }
@@ -213,6 +221,8 @@ void idMD5Mesh::ParseMesh(idLexer &parser, int numJoints, const idJointMat *join
 	if (trim >= 0) ParseZone(&shaderComment.c_str()[trim + 5], 1);
 	trim = idStr::FindText(shaderComment.c_str(), "STUB:");
 	if (trim >= 0) ParseZone(&shaderComment.c_str()[trim + 5], 2);
+	trim = idStr::FindText(shaderComment.c_str(), "STEM:");
+	if (trim >= 0) ParseZone(&shaderComment.c_str()[trim + 5], 3);
 	trim = idStr::FindText(shaderComment.c_str(), "HIDE!");
 	if (trim >= 0) {gibZones = MD5_GIBBED_BITS; gibShown = MD5_GIBBED_HIDE;}
 	trim = idStr::FindText(shaderComment.c_str(), "SHOW!");
@@ -236,8 +246,10 @@ void idMD5Mesh::ParseMesh(idLexer &parser, int numJoints, const idJointMat *join
 			text_fd->Printf("mesh {\n\tshader \"%s\" // HIDE:0x%04X%s%s\n", shaderName.c_str(), (gibZones           ) >> 1, spurts[gibSpurt], trim ? " // TRIM!" : "");
 		} else if (gibShown == MD5_GIBBED_SHOW) {
 			text_fd->Printf("mesh {\n\tshader \"%s\" // SHOW:0x%04X%s%s\n", shaderName.c_str(), (gibZones           ) >> 1, spurts[gibSpurt], trim ? " // TRIM!" : "");
-		} else {
+		} else if (gibShown <= gibZones) {
 			text_fd->Printf("mesh {\n\tshader \"%s\" // STUB:0x%04X%s%s\n", shaderName.c_str(), (gibZones | gibShown) >> 1, spurts[gibSpurt], trim ? " // TRIM!" : "");
+		} else {
+			text_fd->Printf("mesh {\n\tshader \"%s\" // STEM:0x%04X%s%s\n", shaderName.c_str(), (gibZones | gibShown) >> 1, spurts[gibSpurt], trim ? " // TRIM!" : "");
 		}
 		#else
 		text_fd->Printf("mesh {\n\tshader \"%s\"\n", shaderName.c_str());
@@ -417,7 +429,7 @@ void idMD5Mesh::ParseMesh(idLexer &parser, int numJoints, const idJointMat *join
 	// build the information that will be common to all animations of this mesh:
 	// silhouette edge connectivity and normal / tangent generation information
 	//
-	#if 0 // TODO I think this has been fixed already (by enlarging the stack size).
+	#if 0 // DEFUNKT I think this has already been fixed (by enlarging the stack size).
 	size_t allocaSize = texCoords.Num() * sizeof(idDrawVert);
 	idDrawVert* verts;
 	if (allocaSize < 600000) {
@@ -449,7 +461,7 @@ void idMD5Mesh::ParseMesh(idLexer &parser, int numJoints, const idJointMat *join
 	#endif
 	#endif
 
-	#if 0 // TODO I think this has been fixed already (by enlarging the stack size).
+	#if 0 // DEFUNKT I think this has already been fixed (by enlarging the stack size).
 	if (allocaSize >= 600000) Mem_Free16(verts);
 	#endif
 

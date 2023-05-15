@@ -1730,13 +1730,13 @@ void idAnimBlend::CallFrameCommands( idEntity *ent, int fromtime, int totime ) c
 
 	#if MD5_ENABLE_GIBS > 0 // ANIMS DAMAGE
 	if (fromFrameTime <= 0) { // make sure first frame is called
-		anim->CallFrameCommands(ent, -1, frame2.frame1, md5anim->gibLimit);
+		anim->CallFrameCommands(ent,            -1, frame2.frame1, md5anim->gibLimit);
 	} else {
 		anim->CallFrameCommands(ent, frame1.frame1, frame2.frame1, md5anim->gibLimit);
 	}
 	#else
 	if (fromFrameTime <= 0) { // make sure first frame is called
-		anim->CallFrameCommands(ent, -1, frame2.frame1);
+		anim->CallFrameCommands(ent,            -1, frame2.frame1);
 	} else {
 		anim->CallFrameCommands(ent, frame1.frame1, frame2.frame1);
 	}

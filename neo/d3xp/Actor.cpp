@@ -2348,7 +2348,6 @@ void idActor::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir
 			gibbedZone = damageBonesZone[location];
 			if (damageZonesHeap[0] < gameLocal.time) {
 				memset(damageZonesHeap.Ptr(), 0, damageZonesHeap.MemoryUsed());
-			//	for (int i = 1; i < damageZonesHeap.Num(); i++) damageZonesHeap[i] >>= 1; // Half-damage carry over?
 			}
 			damageZonesHeap[0] = gameLocal.time + 1000; // Accumulate damage received within one second of the previous (mostly for shotguns).
 			if (gibbedZone) {
@@ -2358,10 +2357,10 @@ void idActor::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir
 					(ai_testDismemberment.GetInteger() == 4) ||
 					(ai_testDismemberment.GetInteger() == 3 && (damage >= health * (gibbedZone == 2 ? 2 : 1))) || // Require 2x current health to gib body.
 					(ai_testDismemberment.GetInteger() == 2 && (damageZonesHeap[gibbedZone] >= 50 || (damageZonesHeap[gibbedZone] >= 25 && gibbedZone >= 3))) || // Require 2x to gib head/body (given head usually receives 2x).
-					(ai_testDismemberment.GetInteger() <= 1 && (damageZonesHeap[gibbedZone] >= health * (gibbedZone == 2 ? 2 : 1))) // Require 2x to gib body.
+					(ai_testDismemberment.GetInteger() <= 1 && (damageZonesHeap[gibbedZone] >= health * (gibbedZone == 2 ? 4 : 1))) // Require 2x to gib body.
 				) {
 				#else
-				if (damageZonesHeap[gibbedZone] >= health * (gibbedZone == 2 ? 2 : 1)) {
+				if (damageZonesHeap[gibbedZone] >= health * (gibbedZone == 2 ? 4 : 1)) {
 				#endif
 					renderEntity_t* gibbedBody = &renderEntity;
 					renderEntity_t* gibbedHead = head.GetEntity() ? head.GetEntity()->GetRenderEntity() : NULL;
