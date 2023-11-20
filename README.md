@@ -89,6 +89,18 @@ idTech4 Discord: https://discord.com/channels/488393111014342656/488393514690805
 
 Originally added to RB-DOOM3-BFG by https://github.com/stephenap07 using the implementation by Morten S. Mikkelsen.
 
+### EJECTION_EXTRAS
+
+Mechanism to expand what's configurable in terms of ejected brass & (optionally) the ejection of spent ammunition (as debris) - essentially a clone of EjectBrass but only called by script.
+
+At time of writing this is entirely untested. At some future date I'll implement this in D3Q (and find out then if any changes are needed).
+
+_EJECTION_EXTRAS_ > 0 Allows the brass initial velocity to be set in the brass definition via a "linear_velocity" key/vector. See note where used on why this key was chosen. To eject to the bone's right use something like; ``"linear_velocity" "0 -80 0"`` 
+
+_EJECTION_EXTRAS_ > 1 Implements an ejectSpent event with the debris specified via "def_ejectSpent". The new event will need to be declared first in script\doom_events.def; ``scriptEvent void ejectSpent();`` After which it should be callable from a script (or on a frame event) per D3XP.
+
+_EJECTION_EXTRAS_ > 2 Completes clone of EjectBrass by storing the (never used) world model joint.
+
 # ABOUT
 
 _dhewm 3_ is a _Doom 3_ GPL source port, known to work on at least Windows, Linux, macOS and FreeBSD.

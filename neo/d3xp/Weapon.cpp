@@ -70,6 +70,9 @@ const idEventDef EV_Weapon_WeaponLowering( "weaponLowering" );
 const idEventDef EV_Weapon_Flashlight( "flashlight", "d" );
 const idEventDef EV_Weapon_LaunchProjectiles( "launchProjectiles", "dffff" );
 const idEventDef EV_Weapon_CreateProjectile( "createProjectile", NULL, 'e' );
+#if EJECTION_EXTRAS > 1
+const idEventDef EV_Weapon_EjectSpent( "ejectSpent" );
+#endif
 const idEventDef EV_Weapon_EjectBrass( "ejectBrass" );
 const idEventDef EV_Weapon_Melee( "melee", NULL, 'd' );
 const idEventDef EV_Weapon_GetWorldModel( "getWorldModel", NULL, 'e' );
@@ -124,6 +127,9 @@ CLASS_DECLARATION( idAnimatedEntity, idWeapon )
 	EVENT( EV_Light_SetLightParms,				idWeapon::Event_SetLightParms )
 	EVENT( EV_Weapon_LaunchProjectiles,			idWeapon::Event_LaunchProjectiles )
 	EVENT( EV_Weapon_CreateProjectile,			idWeapon::Event_CreateProjectile )
+	#if EJECTION_EXTRAS > 1
+	EVENT( EV_Weapon_EjectSpent,				idWeapon::Event_EjectSpent )
+	#endif
 	EVENT( EV_Weapon_EjectBrass,				idWeapon::Event_EjectBrass )
 	EVENT( EV_Weapon_Melee,						idWeapon::Event_Melee )
 	EVENT( EV_Weapon_GetWorldModel,				idWeapon::Event_GetWorldModel )
@@ -260,6 +266,9 @@ idWeapon::CacheWeapon
 */
 void idWeapon::CacheWeapon( const char *weaponName ) {
 	const idDeclEntityDef *weaponDef;
+	#if EJECTION_EXTRAS > 1
+	const char* spentDefName;
+	#endif
 	const char *brassDefName;
 	const char *clipModelName;
 	idTraceModel trm;
@@ -269,6 +278,22 @@ void idWeapon::CacheWeapon( const char *weaponName ) {
 	if ( !weaponDef ) {
 		return;
 	}
+
+	#if EJECTION_EXTRAS > 1
+	// precache the spent collision model
+	spentDefName = weaponDef->dict.GetString( "def_ejectSpent" );
+	if ( spentDefName[0] ) {
+		const idDeclEntityDef* spentDef = gameLocal.FindEntityDef( spentDefName, false );
+		if ( spentDef ) {
+			spentDef->dict.GetString( "clipmodel", "", &clipModelName );
+			if ( !clipModelName[0] ) {
+				clipModelName = spentDef->dict.GetString( "model" );		// use the visual model
+			}
+			// load the trace model
+			collisionModelManager->TrmFromModel( clipModelName, trm );
+		}
+	}
+	#endif
 
 	// precache the brass collision model
 	brassDefName = weaponDef->dict.GetString( "def_ejectBrass" );
@@ -372,12 +397,18 @@ void idWeapon::Save( idSaveGame *savefile ) const {
 
 	savefile->WriteJoint( barrelJointView );
 	savefile->WriteJoint( flashJointView );
+	#if EJECTION_EXTRAS > 1
+	savefile->WriteJoint( spentJointView );
+	#endif
 	savefile->WriteJoint( ejectJointView );
 	savefile->WriteJoint( guiLightJointView );
 	savefile->WriteJoint( ventLightJointView );
 
 	savefile->WriteJoint( flashJointWorld );
 	savefile->WriteJoint( barrelJointWorld );
+	#if EJECTION_EXTRAS > 2
+	savefile->WriteJoint( spentJointWorld );
+	#endif
 	savefile->WriteJoint( ejectJointWorld );
 
 	savefile->WriteBool( hasBloodSplat );
@@ -508,6 +539,16 @@ void idWeapon::Restore( idRestoreGame *savefile ) {
 		projectileDict.Clear();
 	}
 
+	#if EJECTION_EXTRAS > 1
+	const idDeclEntityDef* spentDef = gameLocal.FindEntityDef( weaponDef->dict.GetString( "def_ejectSpent" ), false );
+	if ( spentDef ) {
+		spentDict = spentDef->dict;
+	}
+	else {
+		spentDict.Clear();
+	}
+	#endif
+
 	const idDeclEntityDef *brassDef = gameLocal.FindEntityDef( weaponDef->dict.GetString( "def_ejectBrass" ), false );
 	if ( brassDef ) {
 		brassDict = brassDef->dict;
@@ -572,12 +613,18 @@ void idWeapon::Restore( idRestoreGame *savefile ) {
 
 	savefile->ReadJoint( barrelJointView );
 	savefile->ReadJoint( flashJointView );
+	#if EJECTION_EXTRAS > 1
+	savefile->ReadJoint( spentJointView );
+	#endif
 	savefile->ReadJoint( ejectJointView );
 	savefile->ReadJoint( guiLightJointView );
 	savefile->ReadJoint( ventLightJointView );
 
 	savefile->ReadJoint( flashJointWorld );
 	savefile->ReadJoint( barrelJointWorld );
+	#if EJECTION_EXTRAS > 2
+	savefile->ReadJoint( spentJointWorld );
+	#endif
 	savefile->ReadJoint( ejectJointWorld );
 
 	savefile->ReadBool( hasBloodSplat );
@@ -795,6 +842,9 @@ void idWeapon::Clear( void ) {
 	meleeDef		= NULL;
 	meleeDefName	= "";
 	meleeDistance	= 0.0f;
+	#if EJECTION_EXTRAS > 1
+	spentDict.Clear();
+	#endif
 	brassDict.Clear();
 
 	flashTime		= 250;
@@ -823,12 +873,18 @@ void idWeapon::Clear( void ) {
 
 	barrelJointView		= INVALID_JOINT;
 	flashJointView		= INVALID_JOINT;
+	#if EJECTION_EXTRAS > 1
+	spentJointView		= INVALID_JOINT;
+	#endif
 	ejectJointView		= INVALID_JOINT;
 	guiLightJointView	= INVALID_JOINT;
 	ventLightJointView	= INVALID_JOINT;
 
 	barrelJointWorld	= INVALID_JOINT;
 	flashJointWorld		= INVALID_JOINT;
+	#if EJECTION_EXTRAS > 2
+	spentJointWorld		= INVALID_JOINT;
+	#endif
 	ejectJointWorld		= INVALID_JOINT;
 
 #ifdef _D3XP
@@ -925,6 +981,10 @@ void idWeapon::InitWorldModel( const idDeclEntityDef *def ) {
 
 	flashJointWorld = ent->GetAnimator()->GetJointHandle( "flash" );
 	barrelJointWorld = ent->GetAnimator()->GetJointHandle( "muzzle" );
+	#if EJECTION_EXTRAS > 2
+	idStr spentJoint = def->dict.GetString("spent_joint");
+	spentJointWorld = spentJoint.Length() > 0 ? ent->GetAnimator()->GetJointHandle(spentJoint) : INVALID_JOINT;
+	#endif
 	ejectJointWorld = ent->GetAnimator()->GetJointHandle( "eject" );
 }
 
@@ -939,6 +999,9 @@ void idWeapon::GetWeaponDef( const char *objectname, int ammoinclip ) {
 	const char *vmodel;
 	const char *guiName;
 	const char *projectileName;
+	#if EJECTION_EXTRAS > 1
+	const char* spentDefName;
+	#endif
 	const char *brassDefName;
 	const char *smokeName;
 	int			ammoAvail;
@@ -1017,6 +1080,10 @@ void idWeapon::GetWeaponDef( const char *objectname, int ammoinclip ) {
 	// find some joints in the model for locating effects
 	barrelJointView = animator.GetJointHandle( "barrel" );
 	flashJointView = animator.GetJointHandle( "flash" );
+	#if EJECTION_EXTRAS > 1
+	idStr spentJoint = weaponDef->dict.GetString("spent_joint");
+	spentJointView = spentJoint.Length() > 0 ? animator.GetJointHandle(spentJoint) : INVALID_JOINT;
+	#endif
 	ejectJointView = animator.GetJointHandle( "eject" );
 	guiLightJointView = animator.GetJointHandle( "guiLight" );
 	ventLightJointView = animator.GetJointHandle( "ventLight" );
@@ -1117,6 +1184,20 @@ void idWeapon::GetWeaponDef( const char *objectname, int ammoinclip ) {
 			gameLocal.Error( "Unknown melee '%s'", meleeDefName.c_str() );
 		}
 	}
+
+	#if EJECTION_EXTRAS > 1
+	// get the spent def
+	spentDict.Clear();
+	spentDefName = weaponDef->dict.GetString( "def_ejectSpent" );
+	if ( spentDefName[0] ) {
+		const idDeclEntityDef* spentDef = gameLocal.FindEntityDef( spentDefName, false );
+		if ( !spentDef ) {
+			gameLocal.Warning( "Unknown spent '%s'", spentDefName );
+		} else {
+			spentDict = spentDef->dict;
+		}
+	}
+	#endif
 
 	// get the brass def
 	brassDict.Clear();
@@ -3896,6 +3977,56 @@ void idWeapon::Event_AllowDrop( int allow ) {
 	}
 }
 
+#if EJECTION_EXTRAS > 1
+
+/*
+================
+idWeapon::Event_EjectSpent
+
+Toss a spent model out from the weapon if the bone is present
+================
+*/
+void idWeapon::Event_EjectSpent(void) {
+
+	if (!g_showBrass.GetBool() || !owner->CanShowWeaponViewmodel()) {
+		return;
+	}
+
+	if (spentJointView == INVALID_JOINT || !spentDict.GetNumKeyVals()) {
+		return;
+	}
+
+	if (gameLocal.isClient) {
+		return;
+	}
+
+	idMat3 axis;
+	idVec3 origin, linear_velocity, angular_velocity;
+	idEntity* ent;
+
+	if (!GetGlobalJointTransform(true, spentJointView, origin, axis)) {
+		return;
+	}
+
+	gameLocal.SpawnEntityDef(spentDict, &ent, false);
+	if (!ent || !ent->IsType(idDebris::Type)) {
+		gameLocal.Error("'%s' is not an idDebris", weaponDef ? weaponDef->dict.GetString("def_ejectSpent") : "def_ejectSpent");
+	}
+	idDebris* debris = static_cast<idDebris*>(ent);
+	debris->Create(owner, origin, axis);
+	debris->Launch();
+
+	idVec3 velocity = spentDict.GetVector("linear_velocity"); // NB: See note in Event_EjectBrass (below).
+	linear_velocity = (viewWeaponAxis[0] * velocity[0]) + (viewWeaponAxis[1] * velocity[1]) + (viewWeaponAxis[2] * velocity[2]);
+	angular_velocity.Set(10 * gameLocal.random.CRandomFloat(), 10 * gameLocal.random.CRandomFloat(), 10 * gameLocal.random.CRandomFloat());
+
+	debris->GetPhysics()->SetLinearVelocity(linear_velocity);
+	debris->GetPhysics()->SetAngularVelocity(angular_velocity);
+
+}
+
+#endif
+
 /*
 ================
 idWeapon::Event_EjectBrass
@@ -3932,6 +4063,12 @@ void idWeapon::Event_EjectBrass( void ) {
 	debris->Create( owner, origin, axis );
 	debris->Launch();
 
+	#if EJECTION_EXTRAS > 0
+	// NOTE: Debris already have a "velocity" vector but it was ignored here. Only way to fall back to default behaviour when
+	// this new functionality hasn't been configured is to continue ignoring it and use the new key "linear_velocity" instead.
+	idVec3 velocity = brassDict.GetVector("linear_velocity");
+	if (velocity != vec3_zero) linear_velocity = (viewWeaponAxis[0] * velocity[0]) + (viewWeaponAxis[1] * velocity[1]) + (viewWeaponAxis[2] * velocity[2]); else
+	#endif
 	linear_velocity = 40 * ( playerViewAxis[0] + playerViewAxis[1] + playerViewAxis[2] );
 	angular_velocity.Set( 10 * gameLocal.random.CRandomFloat(), 10 * gameLocal.random.CRandomFloat(), 10 * gameLocal.random.CRandomFloat() );
 

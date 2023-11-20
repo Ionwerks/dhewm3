@@ -29,6 +29,22 @@ If you have questions concerning this license or the applicable additional terms
 #ifndef __GAME_WEAPON_H__
 #define __GAME_WEAPON_H__
 
+#define EJECTION_EXTRAS 2 // 0=Disable, 1=BrassVelocity, 2=1+SpentEjectEvent, 3=2+UnusedSpentWorldJoint
+
+/* ===================================================================================================
+EJECTION_EXTRAS: Mechanism to expand what's configurable in terms of ejected brass & (optionally) the
+ejection of spent ammunition (as debris) - essentially a clone of EjectBrass but only called by script.
+At time of writing this is entirely untested. At some future date I'll implement this in D3Q (and find
+out then if any changes are needed).
+------------------------------------------------------------------------------------------------------
+_EJECTION_EXTRAS_ > 0 Allows the brass start velocity to be set in the brass def via a
+					  "linear_velocity" key/vector. See note where used on why this key was chosen.
+_EJECTION_EXTRAS_ > 1 Implements an EjectSpent event with the debris specified by "def_ejectSpent".
+					  The new event will need to be declared first in script\doom_events.def after
+					  which it should be callable from a script (or on a frame event) per D3XP.
+_EJECTION_EXTRAS_ > 2 Completes clone of EjectBrass by storing the (never used) world model joint.
+=================================================================================================== */
+
 #include "script/Script_Thread.h"
 #include "Entity.h"
 #include "Light.h"
@@ -254,6 +270,9 @@ private:
 	idDict					projectileDict;
 	float					meleeDistance;
 	idStr					meleeDefName;
+	#if EJECTION_EXTRAS > 1
+	idDict					spentDict;
+	#endif
 	idDict					brassDict;
 	int						brassDelay;
 	idStr					icon;
@@ -303,12 +322,18 @@ private:
 	// joints from models
 	jointHandle_t			barrelJointView;
 	jointHandle_t			flashJointView;
+	#if EJECTION_EXTRAS > 1
+	jointHandle_t			spentJointView;
+	#endif
 	jointHandle_t			ejectJointView;
 	jointHandle_t			guiLightJointView;
 	jointHandle_t			ventLightJointView;
 
 	jointHandle_t			flashJointWorld;
 	jointHandle_t			barrelJointWorld;
+	#if EJECTION_EXTRAS > 2
+	jointHandle_t			spentJointWorld;
+	#endif
 	jointHandle_t			ejectJointWorld;
 
 #ifdef _D3XP
@@ -390,6 +415,9 @@ private:
 	void					Event_SetLightParms( float parm0, float parm1, float parm2, float parm3 );
 	void					Event_LaunchProjectiles( int num_projectiles, float spread, float fuseOffset, float launchPower, float dmgPower );
 	void					Event_CreateProjectile( void );
+	#if EJECTION_EXTRAS > 1
+	void					Event_EjectSpent( void );
+	#endif
 	void					Event_EjectBrass( void );
 	void					Event_Melee( void );
 	void					Event_GetWorldModel( void );
